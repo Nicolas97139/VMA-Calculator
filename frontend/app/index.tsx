@@ -134,12 +134,12 @@ export default function Index() {
       return;
     }
 
-    const distance = parseFloat(distanceInput.replace(',', '.'));
+    const distanceMeters = parseFloat(distanceInput.replace(',', '.'));
     const minutes = parseInt(timeMinutes) || 0;
     const seconds = parseInt(timeSeconds) || 0;
     const totalTimeMinutes = minutes + seconds / 60;
 
-    if (isNaN(distance) || distance <= 0) {
+    if (isNaN(distanceMeters) || distanceMeters <= 0) {
       setAnalysisError('Veuillez entrer une distance valide');
       return;
     }
@@ -151,12 +151,15 @@ export default function Index() {
 
     setAnalysisError(null);
 
+    // Convert distance from meters to km
+    const distanceKm = distanceMeters / 1000;
+
     // Calculate speed in km/h
     const timeInHours = totalTimeMinutes / 60;
-    const speed = distance / timeInHours;
+    const speed = distanceKm / timeInHours;
     
     // Calculate pace (min:sec per km)
-    const paceMinutes = totalTimeMinutes / distance;
+    const paceMinutes = totalTimeMinutes / distanceKm;
     const paceMin = Math.floor(paceMinutes);
     const paceSec = Math.round((paceMinutes - paceMin) * 60);
     const paceStr = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
@@ -191,7 +194,7 @@ export default function Index() {
     const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
     setPerformanceAnalysis({
-      distance,
+      distance: distanceMeters,
       time: timeStr,
       speed: Math.round(speed * 10) / 10,
       pace: paceStr,
