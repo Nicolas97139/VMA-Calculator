@@ -34,6 +34,7 @@ interface VMAResult {
 }
 
 interface PerformanceAnalysis {
+  id: string;
   distance: number;
   time: string;
   speed: number;
