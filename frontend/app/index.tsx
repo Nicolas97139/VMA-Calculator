@@ -830,4 +830,104 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
+  // Performances List Styles
+  performancesListSection: {
+    marginBottom: 24,
+  },
+  performancesHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  performancesTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  performancesTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  clearAllText: {
+    fontSize: 14,
+    color: '#FF5252',
+    fontWeight: '600',
+  },
+  performanceCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    marginBottom: 10,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  performanceCardColorBar: {
+    width: 5,
+  },
+  performanceCardContent: {
+    flex: 1,
+    padding: 14,
+  },
+  performanceCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  performanceCardMainInfo: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+  },
+  performanceCardDistance: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  performanceCardTime: {
+    fontSize: 14,
+    color: '#888',
+  },
+  removeButton: {
+    padding: 4,
+  },
+  performanceCardStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  performanceCardStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  performanceCardStatLabel: {
+    fontSize: 12,
+    color: '#888',
+  },
+  performanceCardStatValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  performanceCardIntensity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginLeft: 'auto',
+  },
+  performanceCardPercentage: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  performanceCardZone: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+  },
 });
