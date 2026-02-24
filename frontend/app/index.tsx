@@ -62,6 +62,13 @@ export default function Index() {
   const [result, setResult] = useState<VMAResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Performance analysis states
+  const [distanceInput, setDistanceInput] = useState('');
+  const [timeMinutes, setTimeMinutes] = useState('');
+  const [timeSeconds, setTimeSeconds] = useState('');
+  const [performanceAnalysis, setPerformanceAnalysis] = useState<PerformanceAnalysis | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const calculateVMA = useCallback(async () => {
     const vmaValue = parseFloat(vmaInput.replace(',', '.'));
