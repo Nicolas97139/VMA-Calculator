@@ -437,19 +437,13 @@ export default function Index() {
               {result.zones.map((zone, index) => (
                 <View 
                   key={index} 
-                  style={[
-                    styles.zoneCard,
-                    performanceAnalysis && performanceAnalysis.zoneIndex === index && styles.zoneCardHighlighted
-                  ]}
+                  style={styles.zoneCard}
                 >
                   <View style={[styles.zoneColorBar, { backgroundColor: getZoneColor(index) }]} />
                   <View style={styles.zoneContent}>
                     <View style={styles.zoneHeader}>
                       <View style={styles.zoneNameRow}>
                         <Text style={styles.zoneName}>{zone.name}</Text>
-                        {performanceAnalysis && performanceAnalysis.zoneIndex === index && (
-                          <Ionicons name="checkmark-circle" size={18} color="#FFD700" style={{ marginLeft: 8 }} />
-                        )}
                       </View>
                       <Text style={styles.zonePercentage}>
                         {zone.percentage_min}-{zone.percentage_max}%
