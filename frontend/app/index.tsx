@@ -33,6 +33,16 @@ interface VMAResult {
   zones: TrainingZone[];
 }
 
+interface PerformanceAnalysis {
+  distance: number;
+  time: string;
+  speed: number;
+  pace: string;
+  percentage: number;
+  zone: TrainingZone | null;
+  zoneIndex: number;
+}
+
 const getZoneColor = (index: number): string => {
   const colors = [
     '#4CAF50', // Récupération - Vert
