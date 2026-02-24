@@ -360,7 +360,7 @@ export default function Index() {
                     <View style={styles.performanceStats}>
                       <View style={styles.performanceStat}>
                         <Text style={styles.performanceStatLabel}>Distance</Text>
-                        <Text style={styles.performanceStatValue}>{performanceAnalysis.distance} km</Text>
+                        <Text style={styles.performanceStatValue}>{performanceAnalysis.distance} m</Text>
                       </View>
                       <View style={styles.performanceStat}>
                         <Text style={styles.performanceStatLabel}>Temps</Text>
