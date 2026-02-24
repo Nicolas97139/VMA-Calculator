@@ -363,58 +363,74 @@ export default function Index() {
                   onPress={analyzePerformance}
                   activeOpacity={0.8}
                 >
-                  <Ionicons name="search" size={20} color="#FFF" />
-                  <Text style={styles.analyzeButtonText}>Analyser</Text>
+                  <Ionicons name="add-circle" size={20} color="#FFF" />
+                  <Text style={styles.analyzeButtonText}>Ajouter la course</Text>
                 </TouchableOpacity>
-
-                {/* Performance Result */}
-                {performanceAnalysis && (
-                  <View style={styles.performanceResult}>
-                    <View style={styles.performanceHeader}>
-                      <Ionicons name="trophy" size={24} color="#FFD700" />
-                      <Text style={styles.performanceTitle}>Votre performance</Text>
-                    </View>
-                    
-                    <View style={styles.performanceStats}>
-                      <View style={styles.performanceStat}>
-                        <Text style={styles.performanceStatLabel}>Distance</Text>
-                        <Text style={styles.performanceStatValue}>{performanceAnalysis.distance} m</Text>
-                      </View>
-                      <View style={styles.performanceStat}>
-                        <Text style={styles.performanceStatLabel}>Temps</Text>
-                        <Text style={styles.performanceStatValue}>{performanceAnalysis.time}</Text>
-                      </View>
-                      <View style={styles.performanceStat}>
-                        <Text style={styles.performanceStatLabel}>Vitesse</Text>
-                        <Text style={styles.performanceStatValue}>{performanceAnalysis.speed} km/h</Text>
-                      </View>
-                      <View style={styles.performanceStat}>
-                        <Text style={styles.performanceStatLabel}>Allure</Text>
-                        <Text style={styles.performanceStatValue}>{performanceAnalysis.pace} /km</Text>
-                      </View>
-                    </View>
-
-                    <View style={[
-                      styles.intensityResult,
-                      { backgroundColor: performanceAnalysis.zoneIndex >= 0 && performanceAnalysis.zoneIndex < 8 
-                        ? getZoneColor(performanceAnalysis.zoneIndex) 
-                        : performanceAnalysis.zoneIndex === -1 ? '#4CAF50' : '#F44336'
-                      }
-                    ]}>
-                      <Text style={styles.intensityPercentage}>{performanceAnalysis.percentage}% VMA</Text>
-                      {performanceAnalysis.zoneIndex === -1 && (
-                        <Text style={styles.intensityZoneName}>En dessous des zones</Text>
-                      )}
-                      {performanceAnalysis.zoneIndex >= 0 && performanceAnalysis.zoneIndex < 8 && performanceAnalysis.zone && (
-                        <Text style={styles.intensityZoneName}>{performanceAnalysis.zone.name}</Text>
-                      )}
-                      {performanceAnalysis.zoneIndex >= 8 && (
-                        <Text style={styles.intensityZoneName}>Au-dessus de la VMA max</Text>
-                      )}
-                    </View>
-                  </View>
-                )}
               </View>
+
+              {/* Performances List */}
+              {performances.length > 0 && (
+                <View style={styles.performancesListSection}>
+                  <View style={styles.performancesHeader}>
+                    <View style={styles.performancesTitleRow}>
+                      <Ionicons name="list" size={22} color="#FF6B35" />
+                      <Text style={styles.performancesTitle}>Mes courses ({performances.length})</Text>
+                    </View>
+                    <TouchableOpacity onPress={clearAllPerformances} activeOpacity={0.7}>
+                      <Text style={styles.clearAllText}>Tout effacer</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {performances.map((perf) => (
+                    <View key={perf.id} style={styles.performanceCard}>
+                      <View style={[
+                        styles.performanceCardColorBar,
+                        { backgroundColor: perf.zoneIndex >= 0 && perf.zoneIndex < 8 
+                          ? getZoneColor(perf.zoneIndex) 
+                          : perf.zoneIndex === -1 ? '#4CAF50' : '#F44336'
+                        }
+                      ]} />
+                      <View style={styles.performanceCardContent}>
+                        <View style={styles.performanceCardHeader}>
+                          <View style={styles.performanceCardMainInfo}>
+                            <Text style={styles.performanceCardDistance}>{perf.distance} m</Text>
+                            <Text style={styles.performanceCardTime}>en {perf.time}</Text>
+                          </View>
+                          <TouchableOpacity 
+                            onPress={() => removePerformance(perf.id)}
+                            style={styles.removeButton}
+                            activeOpacity={0.7}
+                          >
+                            <Ionicons name="close-circle" size={24} color="#FF5252" />
+                          </TouchableOpacity>
+                        </View>
+                        <View style={styles.performanceCardStats}>
+                          <View style={styles.performanceCardStat}>
+                            <Text style={styles.performanceCardStatLabel}>Vitesse</Text>
+                            <Text style={styles.performanceCardStatValue}>{perf.speed} km/h</Text>
+                          </View>
+                          <View style={styles.performanceCardStat}>
+                            <Text style={styles.performanceCardStatLabel}>Allure</Text>
+                            <Text style={styles.performanceCardStatValue}>{perf.pace} /km</Text>
+                          </View>
+                          <View style={[
+                            styles.performanceCardIntensity,
+                            { backgroundColor: perf.zoneIndex >= 0 && perf.zoneIndex < 8 
+                              ? getZoneColor(perf.zoneIndex) 
+                              : perf.zoneIndex === -1 ? '#4CAF50' : '#F44336'
+                            }
+                          ]}>
+                            <Text style={styles.performanceCardPercentage}>{perf.percentage}%</Text>
+                            <Text style={styles.performanceCardZone}>
+                              {perf.zone ? perf.zone.name : (perf.zoneIndex === -1 ? 'Sous zones' : 'Au-dessus')}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
 
               <Text style={styles.zonesTitle}>Zones d'entraînement</Text>
               
