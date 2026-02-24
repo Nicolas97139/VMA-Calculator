@@ -493,6 +493,12 @@ const styles = StyleSheet.create({
     color: '#888',
     marginTop: 4,
   },
+  authorText: {
+    fontSize: 13,
+    color: '#FF6B35',
+    marginTop: 8,
+    fontStyle: 'italic',
+  },
   inputSection: {
     backgroundColor: '#1E1E1E',
     borderRadius: 16,
