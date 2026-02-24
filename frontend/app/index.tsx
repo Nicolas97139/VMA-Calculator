@@ -121,7 +121,85 @@ export default function Index() {
     setVmaInput('');
     setResult(null);
     setError(null);
+    setPerformanceAnalysis(null);
+    setDistanceInput('');
+    setTimeMinutes('');
+    setTimeSeconds('');
+    setAnalysisError(null);
   };
+
+  const analyzePerformance = useCallback(() => {
+    if (!result) {
+      setAnalysisError('Calculez d\'abord votre VMA');
+      return;
+    }
+
+    const distance = parseFloat(distanceInput.replace(',', '.'));
+    const minutes = parseInt(timeMinutes) || 0;
+    const seconds = parseInt(timeSeconds) || 0;
+    const totalTimeMinutes = minutes + seconds / 60;
+
+    if (isNaN(distance) || distance <= 0) {
+      setAnalysisError('Veuillez entrer une distance valide');
+      return;
+    }
+
+    if (totalTimeMinutes <= 0) {
+      setAnalysisError('Veuillez entrer un temps valide');
+      return;
+    }
+
+    setAnalysisError(null);
+
+    // Calculate speed in km/h
+    const timeInHours = totalTimeMinutes / 60;
+    const speed = distance / timeInHours;
+    
+    // Calculate pace (min:sec per km)
+    const paceMinutes = totalTimeMinutes / distance;
+    const paceMin = Math.floor(paceMinutes);
+    const paceSec = Math.round((paceMinutes - paceMin) * 60);
+    const paceStr = `${paceMin}:${paceSec.toString().padStart(2, '0')}`;
+
+    // Calculate percentage of VMA
+    const percentage = (speed / result.vma_value) * 100;
+
+    // Find which zone this falls into
+    let matchingZone: TrainingZone | null = null;
+    let zoneIndex = -1;
+
+    for (let i = 0; i < result.zones.length; i++) {
+      const zone = result.zones[i];
+      if (percentage >= zone.percentage_min && percentage <= zone.percentage_max) {
+        matchingZone = zone;
+        zoneIndex = i;
+        break;
+      }
+    }
+
+    // Handle edge cases
+    if (!matchingZone) {
+      if (percentage < 50) {
+        matchingZone = result.zones[0]; // Below recovery
+        zoneIndex = -1; // Special case: below zones
+      } else if (percentage > 110) {
+        matchingZone = result.zones[result.zones.length - 1]; // Above max
+        zoneIndex = result.zones.length; // Special case: above zones
+      }
+    }
+
+    const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+
+    setPerformanceAnalysis({
+      distance,
+      time: timeStr,
+      speed: Math.round(speed * 10) / 10,
+      pace: paceStr,
+      percentage: Math.round(percentage),
+      zone: matchingZone,
+      zoneIndex,
+    });
+  }, [result, distanceInput, timeMinutes, timeSeconds]);
 
   return (
     <SafeAreaView style={styles.container}>
