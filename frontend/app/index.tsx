@@ -68,7 +68,7 @@ export default function Index() {
   const [distanceInput, setDistanceInput] = useState('');
   const [timeMinutes, setTimeMinutes] = useState('');
   const [timeSeconds, setTimeSeconds] = useState('');
-  const [performanceAnalysis, setPerformanceAnalysis] = useState<PerformanceAnalysis | null>(null);
+  const [performances, setPerformances] = useState<PerformanceAnalysis[]>([]);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   const calculateVMA = useCallback(async () => {
