@@ -276,14 +276,144 @@ export default function Index() {
                 <Text style={styles.vmaDisplayValue}>{result.vma_value} km/h</Text>
               </View>
 
+              {/* Performance Analysis Section */}
+              <View style={styles.analysisSection}>
+                <View style={styles.analysisTitleRow}>
+                  <Ionicons name="analytics" size={22} color="#FF6B35" />
+                  <Text style={styles.analysisTitle}>Analyser une performance</Text>
+                </View>
+                <Text style={styles.analysisSubtitle}>
+                  Entrez une distance et un temps pour situer votre intensité
+                </Text>
+
+                <View style={styles.analysisInputRow}>
+                  <View style={styles.analysisInputGroup}>
+                    <Text style={styles.analysisInputLabel}>Distance</Text>
+                    <View style={styles.analysisInputContainer}>
+                      <TextInput
+                        style={styles.analysisInput}
+                        value={distanceInput}
+                        onChangeText={setDistanceInput}
+                        placeholder="5"
+                        placeholderTextColor="#666"
+                        keyboardType="decimal-pad"
+                      />
+                      <Text style={styles.analysisInputUnit}>km</Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.analysisInputGroup}>
+                    <Text style={styles.analysisInputLabel}>Temps</Text>
+                    <View style={styles.timeInputRow}>
+                      <View style={styles.analysisInputContainer}>
+                        <TextInput
+                          style={styles.analysisInput}
+                          value={timeMinutes}
+                          onChangeText={setTimeMinutes}
+                          placeholder="25"
+                          placeholderTextColor="#666"
+                          keyboardType="number-pad"
+                          maxLength={3}
+                        />
+                        <Text style={styles.analysisInputUnit}>min</Text>
+                      </View>
+                      <View style={styles.analysisInputContainer}>
+                        <TextInput
+                          style={styles.analysisInput}
+                          value={timeSeconds}
+                          onChangeText={setTimeSeconds}
+                          placeholder="30"
+                          placeholderTextColor="#666"
+                          keyboardType="number-pad"
+                          maxLength={2}
+                        />
+                        <Text style={styles.analysisInputUnit}>sec</Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+
+                {analysisError && (
+                  <Text style={styles.errorText}>{analysisError}</Text>
+                )}
+
+                <TouchableOpacity
+                  style={styles.analyzeButton}
+                  onPress={analyzePerformance}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="search" size={20} color="#FFF" />
+                  <Text style={styles.analyzeButtonText}>Analyser</Text>
+                </TouchableOpacity>
+
+                {/* Performance Result */}
+                {performanceAnalysis && (
+                  <View style={styles.performanceResult}>
+                    <View style={styles.performanceHeader}>
+                      <Ionicons name="trophy" size={24} color="#FFD700" />
+                      <Text style={styles.performanceTitle}>Votre performance</Text>
+                    </View>
+                    
+                    <View style={styles.performanceStats}>
+                      <View style={styles.performanceStat}>
+                        <Text style={styles.performanceStatLabel}>Distance</Text>
+                        <Text style={styles.performanceStatValue}>{performanceAnalysis.distance} km</Text>
+                      </View>
+                      <View style={styles.performanceStat}>
+                        <Text style={styles.performanceStatLabel}>Temps</Text>
+                        <Text style={styles.performanceStatValue}>{performanceAnalysis.time}</Text>
+                      </View>
+                      <View style={styles.performanceStat}>
+                        <Text style={styles.performanceStatLabel}>Vitesse</Text>
+                        <Text style={styles.performanceStatValue}>{performanceAnalysis.speed} km/h</Text>
+                      </View>
+                      <View style={styles.performanceStat}>
+                        <Text style={styles.performanceStatLabel}>Allure</Text>
+                        <Text style={styles.performanceStatValue}>{performanceAnalysis.pace} /km</Text>
+                      </View>
+                    </View>
+
+                    <View style={[
+                      styles.intensityResult,
+                      { backgroundColor: performanceAnalysis.zoneIndex >= 0 && performanceAnalysis.zoneIndex < 8 
+                        ? getZoneColor(performanceAnalysis.zoneIndex) 
+                        : performanceAnalysis.zoneIndex === -1 ? '#4CAF50' : '#F44336'
+                      }
+                    ]}>
+                      <Text style={styles.intensityPercentage}>{performanceAnalysis.percentage}% VMA</Text>
+                      {performanceAnalysis.zoneIndex === -1 && (
+                        <Text style={styles.intensityZoneName}>En dessous des zones</Text>
+                      )}
+                      {performanceAnalysis.zoneIndex >= 0 && performanceAnalysis.zoneIndex < 8 && performanceAnalysis.zone && (
+                        <Text style={styles.intensityZoneName}>{performanceAnalysis.zone.name}</Text>
+                      )}
+                      {performanceAnalysis.zoneIndex >= 8 && (
+                        <Text style={styles.intensityZoneName}>Au-dessus de la VMA max</Text>
+                      )}
+                    </View>
+                  </View>
+                )}
+              </View>
+
               <Text style={styles.zonesTitle}>Zones d'entraînement</Text>
               
               {result.zones.map((zone, index) => (
-                <View key={index} style={styles.zoneCard}>
+                <View 
+                  key={index} 
+                  style={[
+                    styles.zoneCard,
+                    performanceAnalysis && performanceAnalysis.zoneIndex === index && styles.zoneCardHighlighted
+                  ]}
+                >
                   <View style={[styles.zoneColorBar, { backgroundColor: getZoneColor(index) }]} />
                   <View style={styles.zoneContent}>
                     <View style={styles.zoneHeader}>
-                      <Text style={styles.zoneName}>{zone.name}</Text>
+                      <View style={styles.zoneNameRow}>
+                        <Text style={styles.zoneName}>{zone.name}</Text>
+                        {performanceAnalysis && performanceAnalysis.zoneIndex === index && (
+                          <Ionicons name="checkmark-circle" size={18} color="#FFD700" style={{ marginLeft: 8 }} />
+                        )}
+                      </View>
                       <Text style={styles.zonePercentage}>
                         {zone.percentage_min}-{zone.percentage_max}%
                       </Text>
