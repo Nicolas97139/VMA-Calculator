@@ -655,4 +655,142 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 22,
   },
+  // Performance Analysis Styles
+  analysisSection: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+  },
+  analysisTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 6,
+  },
+  analysisTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  analysisSubtitle: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 16,
+  },
+  analysisInputRow: {
+    gap: 16,
+  },
+  analysisInputGroup: {
+    marginBottom: 12,
+  },
+  analysisInputLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  analysisInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flex: 1,
+  },
+  analysisInput: {
+    flex: 1,
+    height: 48,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  analysisInputUnit: {
+    fontSize: 14,
+    color: '#888',
+    marginLeft: 6,
+  },
+  timeInputRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  analyzeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#2196F3',
+    borderRadius: 10,
+    paddingVertical: 14,
+    gap: 8,
+    marginTop: 8,
+  },
+  analyzeButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  performanceResult: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+  },
+  performanceHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  performanceTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  performanceStats: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  performanceStat: {
+    width: '48%',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  performanceStatLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 4,
+  },
+  performanceStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  intensityResult: {
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  intensityPercentage: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  intensityZoneName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+  },
+  zoneCardHighlighted: {
+    borderWidth: 2,
+    borderColor: '#FFD700',
+  },
+  zoneNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
 });
