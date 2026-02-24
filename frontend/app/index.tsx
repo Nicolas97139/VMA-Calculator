@@ -966,4 +966,63 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: 'rgba(255,255,255,0.9)',
   },
+  // Average Section Styles
+  averageSection: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  averageHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  averageTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  averageContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  averageMainStat: {
+    alignItems: 'center',
+    paddingRight: 20,
+    borderRightWidth: 1,
+    borderRightColor: '#444',
+  },
+  averagePercentage: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#FFD700',
+  },
+  averageLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginTop: 4,
+  },
+  averageDetails: {
+    flex: 1,
+    paddingLeft: 20,
+    gap: 8,
+  },
+  averageDetailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  averageDetailLabel: {
+    fontSize: 13,
+    color: '#888',
+  },
+  averageDetailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
 });
