@@ -297,11 +297,11 @@ export default function Index() {
                         style={styles.analysisInput}
                         value={distanceInput}
                         onChangeText={setDistanceInput}
-                        placeholder="5"
+                        placeholder="1000"
                         placeholderTextColor="#666"
                         keyboardType="decimal-pad"
                       />
-                      <Text style={styles.analysisInputUnit}>km</Text>
+                      <Text style={styles.analysisInputUnit}>m</Text>
                     </View>
                   </View>
 
