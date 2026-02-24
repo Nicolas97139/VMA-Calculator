@@ -221,6 +221,7 @@ export default function Index() {
             <Ionicons name="fitness" size={48} color="#FF6B35" />
             <Text style={styles.title}>Calculateur VMA</Text>
             <Text style={styles.subtitle}>Calcul des zones d'entraînement</Text>
+            <Text style={styles.authorText}>by M.DURAND</Text>
           </View>
 
           {/* Input Section */}
