@@ -1,30 +1,433 @@
-import { Text, View, StyleSheet, Image } from "react-native";
+import React, { useState, useCallback } from 'react';
+import {
+  Text,
+  View,
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 
-const EXPO_PUBLIC_BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
+
+interface TrainingZone {
+  name: string;
+  percentage_min: number;
+  percentage_max: number;
+  description: string;
+  speed_min: number;
+  speed_max: number;
+  pace_min: string;
+  pace_max: string;
+}
+
+interface VMAResult {
+  vma_value: number;
+  zones: TrainingZone[];
+}
+
+const getZoneColor = (index: number): string => {
+  const colors = [
+    '#4CAF50', // Récupération - Vert
+    '#8BC34A', // Endurance fondamentale - Vert clair
+    '#CDDC39', // Endurance active - Lime
+    '#FFEB3B', // Seuil anaérobie - Jaune
+    '#FFC107', // VMA longue - Ambre
+    '#FF9800', // VMA - Orange
+    '#FF5722', // VMA courte - Orange foncé
+    '#F44336', // Vitesse - Rouge
+  ];
+  return colors[index] || '#9E9E9E';
+};
 
 export default function Index() {
-  console.log(EXPO_PUBLIC_BACKEND_URL, "EXPO_PUBLIC_BACKEND_URL");
+  const [vmaInput, setVmaInput] = useState('');
+  const [result, setResult] = useState<VMAResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const calculateVMA = useCallback(async () => {
+    const vmaValue = parseFloat(vmaInput.replace(',', '.'));
+    
+    if (isNaN(vmaValue) || vmaValue <= 0) {
+      setError('Veuillez entrer une VMA valide');
+      return;
+    }
+    
+    if (vmaValue > 30) {
+      setError('La VMA doit être inférieure à 30 km/h');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/calculate?vma_value=${vmaValue}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Erreur lors du calcul');
+      }
+
+      const data: VMAResult = await response.json();
+      setResult(data);
+
+      // Save to history
+      await fetch(`${BACKEND_URL}/api/history`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ vma_value: vmaValue }),
+      });
+    } catch (err) {
+      setError('Erreur de connexion au serveur');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [vmaInput]);
+
+  const resetCalculation = () => {
+    setVmaInput('');
+    setResult(null);
+    setError(null);
+  };
 
   return (
-    <View style={styles.container}>
-      <Image
-        source={require("../assets/images/app-image.png")}
-        style={styles.image}
-      />
-    </View>
+    <SafeAreaView style={styles.container}>
+      <StatusBar style="light" />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Header */}
+          <View style={styles.header}>
+            <Ionicons name="fitness" size={48} color="#FF6B35" />
+            <Text style={styles.title}>Calculateur VMA</Text>
+            <Text style={styles.subtitle}>Calcul des zones d'entraînement</Text>
+          </View>
+
+          {/* Input Section */}
+          <View style={styles.inputSection}>
+            <Text style={styles.inputLabel}>Votre VMA (km/h)</Text>
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                value={vmaInput}
+                onChangeText={setVmaInput}
+                placeholder="Ex: 15.5"
+                placeholderTextColor="#666"
+                keyboardType="decimal-pad"
+                returnKeyType="done"
+                onSubmitEditing={calculateVMA}
+              />
+              <Text style={styles.inputUnit}>km/h</Text>
+            </View>
+            {error && (
+              <Text style={styles.errorText}>{error}</Text>
+            )}
+            
+            <TouchableOpacity
+              style={[styles.calculateButton, loading && styles.buttonDisabled]}
+              onPress={calculateVMA}
+              disabled={loading}
+              activeOpacity={0.8}
+            >
+              {loading ? (
+                <ActivityIndicator color="#FFF" />
+              ) : (
+                <>
+                  <Ionicons name="calculator" size={24} color="#FFF" />
+                  <Text style={styles.buttonText}>Calculer</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {result && (
+              <TouchableOpacity
+                style={styles.resetButton}
+                onPress={resetCalculation}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="refresh" size={20} color="#FF6B35" />
+                <Text style={styles.resetButtonText}>Nouveau calcul</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Results Section */}
+          {result && (
+            <View style={styles.resultsSection}>
+              <View style={styles.vmaDisplayContainer}>
+                <Text style={styles.vmaDisplayLabel}>VMA</Text>
+                <Text style={styles.vmaDisplayValue}>{result.vma_value} km/h</Text>
+              </View>
+
+              <Text style={styles.zonesTitle}>Zones d'entraînement</Text>
+              
+              {result.zones.map((zone, index) => (
+                <View key={index} style={styles.zoneCard}>
+                  <View style={[styles.zoneColorBar, { backgroundColor: getZoneColor(index) }]} />
+                  <View style={styles.zoneContent}>
+                    <View style={styles.zoneHeader}>
+                      <Text style={styles.zoneName}>{zone.name}</Text>
+                      <Text style={styles.zonePercentage}>
+                        {zone.percentage_min}-{zone.percentage_max}%
+                      </Text>
+                    </View>
+                    <Text style={styles.zoneDescription}>{zone.description}</Text>
+                    <View style={styles.zoneData}>
+                      <View style={styles.dataItem}>
+                        <Ionicons name="speedometer" size={16} color="#FF6B35" />
+                        <Text style={styles.dataLabel}>Vitesse</Text>
+                        <Text style={styles.dataValue}>
+                          {zone.speed_min} - {zone.speed_max} km/h
+                        </Text>
+                      </View>
+                      <View style={styles.dataItem}>
+                        <Ionicons name="time" size={16} color="#FF6B35" />
+                        <Text style={styles.dataLabel}>Allure</Text>
+                        <Text style={styles.dataValue}>
+                          {zone.pace_min} - {zone.pace_max} /km
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Info Section */}
+          {!result && (
+            <View style={styles.infoSection}>
+              <Ionicons name="information-circle" size={24} color="#FF6B35" />
+              <Text style={styles.infoTitle}>Qu'est-ce que la VMA ?</Text>
+              <Text style={styles.infoText}>
+                La Vitesse Maximale Aérobie (VMA) est la vitesse de course à partir de laquelle 
+                votre consommation d'oxygène est maximale. C'est un indicateur clé pour 
+                planifier vos entraînements de course à pied.
+              </Text>
+            </View>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0c0c0c",
-    alignItems: "center",
-    justifyContent: "center",
+    backgroundColor: '#121212',
   },
-  image: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "contain",
+  keyboardView: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  header: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 12,
+  },
+  subtitle: {
+    fontSize: 16,
+    color: '#888',
+    marginTop: 4,
+  },
+  inputSection: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    marginBottom: 12,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  input: {
+    flex: 1,
+    height: 56,
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  inputUnit: {
+    fontSize: 18,
+    color: '#888',
+    marginLeft: 8,
+  },
+  errorText: {
+    color: '#FF5252',
+    fontSize: 14,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  calculateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF6B35',
+    borderRadius: 12,
+    paddingVertical: 16,
+    gap: 8,
+  },
+  buttonDisabled: {
+    opacity: 0.7,
+  },
+  buttonText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  resetButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 12,
+    paddingVertical: 12,
+    gap: 6,
+  },
+  resetButtonText: {
+    fontSize: 16,
+    color: '#FF6B35',
+  },
+  resultsSection: {
+    marginTop: 8,
+  },
+  vmaDisplayContainer: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  vmaDisplayLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+  },
+  vmaDisplayValue: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 4,
+  },
+  zonesTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginBottom: 16,
+  },
+  zoneCard: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    marginBottom: 12,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  zoneColorBar: {
+    width: 6,
+  },
+  zoneContent: {
+    flex: 1,
+    padding: 16,
+  },
+  zoneHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  zoneName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  zonePercentage: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B35',
+  },
+  zoneDescription: {
+    fontSize: 13,
+    color: '#888',
+    marginBottom: 12,
+  },
+  zoneData: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  dataItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  dataLabel: {
+    fontSize: 12,
+    color: '#888',
+  },
+  dataValue: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  infoSection: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  infoTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#888',
+    textAlign: 'center',
+    lineHeight: 22,
   },
 });
