@@ -122,7 +122,7 @@ export default function Index() {
     setVmaInput('');
     setResult(null);
     setError(null);
-    setPerformanceAnalysis(null);
+    setPerformances([]);
     setDistanceInput('');
     setTimeMinutes('');
     setTimeSeconds('');
