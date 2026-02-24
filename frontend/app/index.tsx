@@ -194,7 +194,8 @@ export default function Index() {
 
     const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-    setPerformanceAnalysis({
+    const newPerformance: PerformanceAnalysis = {
+      id: Date.now().toString(),
       distance: distanceMeters,
       time: timeStr,
       speed: Math.round(speed * 10) / 10,
@@ -202,8 +203,23 @@ export default function Index() {
       percentage: Math.round(percentage),
       zone: matchingZone,
       zoneIndex,
-    });
+    };
+
+    setPerformances(prev => [newPerformance, ...prev]);
+    
+    // Reset inputs for next entry
+    setDistanceInput('');
+    setTimeMinutes('');
+    setTimeSeconds('');
   }, [result, distanceInput, timeMinutes, timeSeconds]);
+
+  const removePerformance = (id: string) => {
+    setPerformances(prev => prev.filter(p => p.id !== id));
+  };
+
+  const clearAllPerformances = () => {
+    setPerformances([]);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
