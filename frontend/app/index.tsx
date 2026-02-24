@@ -429,6 +429,42 @@ export default function Index() {
                       </View>
                     </View>
                   ))}
+
+                  {/* Average Intensity Section */}
+                  {performances.length >= 1 && (
+                    <View style={styles.averageSection}>
+                      <View style={styles.averageHeader}>
+                        <Ionicons name="stats-chart" size={22} color="#FFD700" />
+                        <Text style={styles.averageTitle}>Moyenne des intensités</Text>
+                      </View>
+                      <View style={styles.averageContent}>
+                        <View style={styles.averageMainStat}>
+                          <Text style={styles.averagePercentage}>
+                            {Math.round(performances.reduce((sum, p) => sum + p.percentage, 0) / performances.length)}%
+                          </Text>
+                          <Text style={styles.averageLabel}>VMA moyenne</Text>
+                        </View>
+                        <View style={styles.averageDetails}>
+                          <View style={styles.averageDetailItem}>
+                            <Text style={styles.averageDetailLabel}>Vitesse moy.</Text>
+                            <Text style={styles.averageDetailValue}>
+                              {(performances.reduce((sum, p) => sum + p.speed, 0) / performances.length).toFixed(1)} km/h
+                            </Text>
+                          </View>
+                          <View style={styles.averageDetailItem}>
+                            <Text style={styles.averageDetailLabel}>Distance totale</Text>
+                            <Text style={styles.averageDetailValue}>
+                              {performances.reduce((sum, p) => sum + p.distance, 0)} m
+                            </Text>
+                          </View>
+                          <View style={styles.averageDetailItem}>
+                            <Text style={styles.averageDetailLabel}>Nb courses</Text>
+                            <Text style={styles.averageDetailValue}>{performances.length}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    </View>
+                  )}
                 </View>
               )}
 
