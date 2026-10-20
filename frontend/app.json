@@ -9,14 +9,21 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emergent.vmathresholdcalc.c7gseu",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "Sauvegarder le récapitulatif de vos courses",
+        "NSPhotoLibraryAddUsageDescription": "Exporter le récapitulatif dans votre pellicule"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.emergent.vmathresholdcalc.c7gseu",
+      "permissions": ["WRITE_EXTERNAL_STORAGE", "READ_EXTERNAL_STORAGE"]
     },
     "web": {
       "bundler": "metro",
@@ -32,6 +39,13 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#000"
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Sauvegarder le récapitulatif de vos courses",
+          "savePhotosPermission": "Exporter le récapitulatif dans votre pellicule"
         }
       ]
     ],

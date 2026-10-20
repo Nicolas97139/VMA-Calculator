@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   Text,
   View,
@@ -14,6 +14,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import * as MediaLibrary from 'expo-media-library';
+import ViewShot from 'react-native-view-shot';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -64,12 +66,20 @@ export default function Index() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
+  // Runner info
+  const [runnerFirstName, setRunnerFirstName] = useState('');
+  const [runnerLastName, setRunnerLastName] = useState('');
+  
   // Performance analysis states
   const [distanceInput, setDistanceInput] = useState('');
   const [timeMinutes, setTimeMinutes] = useState('');
   const [timeSeconds, setTimeSeconds] = useState('');
   const [performances, setPerformances] = useState<PerformanceAnalysis[]>([]);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
+  
+  // Export states
+  const [exporting, setExporting] = useState(false);
+  const viewShotRef = useRef<ViewShot>(null);
 
   const calculateVMA = useCallback(async () => {
     const vmaValue = parseFloat(vmaInput.replace(',', '.'));
@@ -127,6 +137,47 @@ export default function Index() {
     setTimeMinutes('');
     setTimeSeconds('');
     setAnalysisError(null);
+    setRunnerFirstName('');
+    setRunnerLastName('');
+  };
+
+  const exportToGallery = async () => {
+    if (performances.length === 0) {
+      Alert.alert('Erreur', 'Ajoutez au moins une course pour exporter');
+      return;
+    }
+
+    if (!runnerFirstName.trim() || !runnerLastName.trim()) {
+      Alert.alert('Erreur', 'Veuillez entrer votre nom et prénom');
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      // Request permission
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission refusée', 'L\'accès à la galerie est nécessaire pour exporter');
+        setExporting(false);
+        return;
+      }
+
+      // Capture the view
+      if (viewShotRef.current) {
+        const uri = await viewShotRef.current.capture?.();
+        if (uri) {
+          // Save to gallery
+          await MediaLibrary.saveToLibraryAsync(uri);
+          Alert.alert('Succès', 'Récapitulatif exporté dans votre pellicule !');
+        }
+      }
+    } catch (err) {
+      console.error('Export error:', err);
+      Alert.alert('Erreur', 'Impossible d\'exporter le récapitulatif');
+    } finally {
+      setExporting(false);
+    }
   };
 
   const analyzePerformance = useCallback(() => {
@@ -297,6 +348,36 @@ export default function Index() {
                 <Text style={styles.vmaDisplayValue}>{result.vma_value} km/h</Text>
               </View>
 
+              {/* Runner Info Section */}
+              <View style={styles.runnerInfoSection}>
+                <View style={styles.runnerInfoTitleRow}>
+                  <Ionicons name="person" size={20} color="#FF6B35" />
+                  <Text style={styles.runnerInfoTitle}>Informations coureur</Text>
+                </View>
+                <View style={styles.runnerInputsRow}>
+                  <View style={styles.runnerInputGroup}>
+                    <Text style={styles.runnerInputLabel}>Prénom</Text>
+                    <TextInput
+                      style={styles.runnerInput}
+                      value={runnerFirstName}
+                      onChangeText={setRunnerFirstName}
+                      placeholder="Jean"
+                      placeholderTextColor="#666"
+                    />
+                  </View>
+                  <View style={styles.runnerInputGroup}>
+                    <Text style={styles.runnerInputLabel}>Nom</Text>
+                    <TextInput
+                      style={styles.runnerInput}
+                      value={runnerLastName}
+                      onChangeText={setRunnerLastName}
+                      placeholder="Dupont"
+                      placeholderTextColor="#666"
+                    />
+                  </View>
+                </View>
+              </View>
+
               {/* Performance Analysis Section */}
               <View style={styles.analysisSection}>
                 <View style={styles.analysisTitleRow}>
@@ -465,7 +546,111 @@ export default function Index() {
                       </View>
                     </View>
                   )}
+
+                  {/* Export Button */}
+                  {performances.length >= 1 && (
+                    <TouchableOpacity
+                      style={[styles.exportButton, exporting && styles.buttonDisabled]}
+                      onPress={exportToGallery}
+                      disabled={exporting}
+                      activeOpacity={0.8}
+                    >
+                      {exporting ? (
+                        <ActivityIndicator color="#FFF" />
+                      ) : (
+                        <>
+                          <Ionicons name="download" size={20} color="#FFF" />
+                          <Text style={styles.exportButtonText}>Exporter dans la pellicule</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  )}
                 </View>
+              )}
+
+              {/* Hidden ViewShot for export */}
+              {performances.length >= 1 && (
+                <ViewShot
+                  ref={viewShotRef}
+                  options={{ format: 'png', quality: 1 }}
+                  style={styles.exportContainer}
+                >
+                  <View style={styles.exportContent}>
+                    <View style={styles.exportHeader}>
+                      <Ionicons name="fitness" size={32} color="#FF6B35" />
+                      <Text style={styles.exportTitle}>Récapitulatif VMA</Text>
+                      <Text style={styles.exportAuthor}>by M.DURAND</Text>
+                    </View>
+
+                    <View style={styles.exportRunnerInfo}>
+                      <Text style={styles.exportRunnerName}>
+                        {runnerFirstName} {runnerLastName}
+                      </Text>
+                      <Text style={styles.exportVMA}>VMA: {result?.vma_value} km/h</Text>
+                    </View>
+
+                    <View style={styles.exportCoursesHeader}>
+                      <Text style={styles.exportCoursesTitle}>Courses réalisées</Text>
+                    </View>
+
+                    {performances.map((perf, index) => (
+                      <View key={perf.id} style={styles.exportCourseItem}>
+                        <View style={[
+                          styles.exportCourseColorBar,
+                          { backgroundColor: perf.zoneIndex >= 0 && perf.zoneIndex < 8 
+                            ? getZoneColor(perf.zoneIndex) 
+                            : perf.zoneIndex === -1 ? '#4CAF50' : '#F44336'
+                          }
+                        ]} />
+                        <Text style={styles.exportCourseNumber}>{index + 1}</Text>
+                        <View style={styles.exportCourseDetails}>
+                          <Text style={styles.exportCourseDistance}>{perf.distance} m</Text>
+                          <Text style={styles.exportCourseTime}>en {perf.time}</Text>
+                        </View>
+                        <View style={styles.exportCourseStats}>
+                          <Text style={styles.exportCourseSpeed}>{perf.speed} km/h</Text>
+                          <Text style={styles.exportCoursePace}>{perf.pace}/km</Text>
+                        </View>
+                        <View style={[
+                          styles.exportCourseIntensity,
+                          { backgroundColor: perf.zoneIndex >= 0 && perf.zoneIndex < 8 
+                            ? getZoneColor(perf.zoneIndex) 
+                            : perf.zoneIndex === -1 ? '#4CAF50' : '#F44336'
+                          }
+                        ]}>
+                          <Text style={styles.exportCoursePercentage}>{perf.percentage}%</Text>
+                        </View>
+                      </View>
+                    ))}
+
+                    <View style={styles.exportSummary}>
+                      <View style={styles.exportSummaryItem}>
+                        <Text style={styles.exportSummaryLabel}>Moyenne</Text>
+                        <Text style={styles.exportSummaryValue}>
+                          {Math.round(performances.reduce((sum, p) => sum + p.percentage, 0) / performances.length)}% VMA
+                        </Text>
+                      </View>
+                      <View style={styles.exportSummaryItem}>
+                        <Text style={styles.exportSummaryLabel}>Distance totale</Text>
+                        <Text style={styles.exportSummaryValue}>
+                          {performances.reduce((sum, p) => sum + p.distance, 0)} m
+                        </Text>
+                      </View>
+                      <View style={styles.exportSummaryItem}>
+                        <Text style={styles.exportSummaryLabel}>Nb courses</Text>
+                        <Text style={styles.exportSummaryValue}>{performances.length}</Text>
+                      </View>
+                    </View>
+
+                    <Text style={styles.exportDate}>
+                      {new Date().toLocaleDateString('fr-FR', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric' 
+                      })}
+                    </Text>
+                  </View>
+                </ViewShot>
               )}
 
               <Text style={styles.zonesTitle}>Zones d'entraînement</Text>
@@ -1024,5 +1209,201 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  // Runner Info Styles
+  runnerInfoSection: {
+    backgroundColor: '#1E1E1E',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  runnerInfoTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 12,
+  },
+  runnerInfoTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  runnerInputsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  runnerInputGroup: {
+    flex: 1,
+  },
+  runnerInputLabel: {
+    fontSize: 12,
+    color: '#888',
+    marginBottom: 6,
+  },
+  runnerInput: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  // Export Button Styles
+  exportButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#4CAF50',
+    borderRadius: 10,
+    paddingVertical: 14,
+    gap: 8,
+    marginTop: 16,
+  },
+  exportButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  // Export View Styles (for screenshot)
+  exportContainer: {
+    position: 'absolute',
+    left: -1000,
+    top: 0,
+    width: 400,
+  },
+  exportContent: {
+    backgroundColor: '#121212',
+    padding: 24,
+    borderRadius: 16,
+  },
+  exportHeader: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#333',
+  },
+  exportTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    marginTop: 8,
+  },
+  exportAuthor: {
+    fontSize: 12,
+    color: '#FF6B35',
+    fontStyle: 'italic',
+    marginTop: 4,
+  },
+  exportRunnerInfo: {
+    backgroundColor: '#FF6B35',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  exportRunnerName: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  exportVMA: {
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.9)',
+    marginTop: 4,
+  },
+  exportCoursesHeader: {
+    marginBottom: 12,
+  },
+  exportCoursesTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  exportCourseItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E1E1E',
+    borderRadius: 8,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  exportCourseColorBar: {
+    width: 4,
+    height: '100%',
+  },
+  exportCourseNumber: {
+    width: 28,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#888',
+    textAlign: 'center',
+  },
+  exportCourseDetails: {
+    flex: 1,
+    paddingVertical: 10,
+  },
+  exportCourseDistance: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  exportCourseTime: {
+    fontSize: 12,
+    color: '#888',
+  },
+  exportCourseStats: {
+    alignItems: 'flex-end',
+    paddingRight: 10,
+  },
+  exportCourseSpeed: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  exportCoursePace: {
+    fontSize: 11,
+    color: '#888',
+  },
+  exportCourseIntensity: {
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 50,
+  },
+  exportCoursePercentage: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  exportSummary: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    padding: 16,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#FFD700',
+  },
+  exportSummaryItem: {
+    alignItems: 'center',
+  },
+  exportSummaryLabel: {
+    fontSize: 11,
+    color: '#888',
+  },
+  exportSummaryValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FFD700',
+    marginTop: 4,
+  },
+  exportDate: {
+    fontSize: 12,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 16,
   },
 });
