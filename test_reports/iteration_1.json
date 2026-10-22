@@ -1,0 +1,40 @@
+{
+  "summary": "VMA calculator (Expo SDK 58 + FastAPI) tested end-to-end on web preview after SDK upgrade. Backend 8/8 pytest cases pass (root, calculate valid/invalid, history CRUD). Frontend web preview loads with no 'Class extends value undefined' SSR crash and no red screen; title 'Calculateur VMA' and 'by M.DURAND' render, Ionicons from @react-native-vector-icons/ionicons render correctly. Full flow verified: VMA 15 -> Calculer -> 8 zones with km/h & pace; Prenom/Nom accept input; 1000m/4:00 -> 15 km/h, 4:00/km, 100% VMA; multi-race (2000m/9:00 -> 13.3 km/h, 4:30/km, 89% Seuil anaerobie; 400m/1:30 -> 16 km/h, 3:45/km, 107% Vitesse); 'Tout effacer' clears list; 'Nouveau calcul' resets to intro screen; Average 'Moyenne des intensites' computes correctly (e.g. 95% for 100/89 pair). Export button tap does not crash page on web (MediaLibrary.Asset.create migration path safely handled; permissions prompt won't resolve on web as expected). POST /api/calculate?vma_value=15 returns valid zones. No React Native deprecated-package issues detected (expo-media-library used with new Asset.create API, not deprecated expo-av).",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Analyser une performance", "issues": ["Remove-X TouchableOpacity has small 24px icon with only padding:4 wrapper (~32px hit area) which is below the 44px minimum touch-target guideline. Also missing testID making automated testing harder."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vma_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Add testID props to key interactive elements for easier automated testing: 'vma-input', 'calculate-btn', 'reset-btn', 'firstname-input', 'lastname-input', 'distance-input', 'time-min-input', 'time-sec-input', 'add-race-btn', 'remove-race-btn', 'clear-all-btn', 'export-btn'.",
+    "(Optional) Increase hit area of the per-race remove (close-circle) TouchableOpacity to >=44x44 (hitSlop or larger padding).",
+    "(Optional) backend/server.py uses deprecated FastAPI @app.on_event('shutdown') and datetime.utcnow(); consider migrating to lifespan handler and datetime.now(timezone.utc). Non-blocking."
+  ],
+  "critical_code_review_comments": [
+    "server.py: datetime.utcnow() is deprecated in Python 3.12+. Replace with datetime.now(timezone.utc).",
+    "server.py: @app.on_event('shutdown') is deprecated in Starlette; migrate to lifespan context manager.",
+    "server.py: /api/history POST does not persist 'notes' field correctly — VMACalculation is rebuilt from VMACalculationCreate dict then dumped, which is fine, but POST GET flow confirms persistence works.",
+    "frontend index.tsx: 1421 lines — above the 700-line threshold; recommend splitting into smaller components (VMAInput, PerformanceAnalysis, PerformanceList, ExportView).",
+    "frontend uses process.env.EXPO_PUBLIC_BACKEND_URL correctly (SDK 58 compatible)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_vma_api.py (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "Transient TEST_ history entry created and deleted within test_vma_api.py (no residual data).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "App is Expo SDK 58 + React 19.3 + RN 0.88 with web output=single. @expo/vector-icons replaced by @react-native-vector-icons/ionicons. expo-media-library uses MediaLibrary.Asset.create + getPermissionsAsync(true)/requestPermissionsAsync(true). Backend has 4 endpoints under /api: GET /, POST /calculate?vma_value=X, POST /history (body), GET /history, DELETE /history/{id}. No auth. Use EXPO_PUBLIC_BACKEND_URL env var. Interactive elements currently lack testID — tests rely on placeholder/text selectors (get_by_placeholder, get_by_text with exact=True).",
+  "rca_of_issue": "N/A — no bugs reproduced. SDK 58 upgrade is functioning on web preview (no SSR 'Class extends value undefined' error now that output='single' is used). MediaLibrary migration is non-crashing on web."
+}

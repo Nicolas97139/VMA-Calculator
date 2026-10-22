@@ -10,10 +10,11 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Ionicons } from '@expo/vector-icons';
+import Ionicons from '@react-native-vector-icons/ionicons';
 import * as MediaLibrary from 'expo-media-library';
 import ViewShot from 'react-native-view-shot';
 
@@ -155,11 +156,22 @@ export default function Index() {
     setExporting(true);
 
     try {
-      // Request permission
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert('Permission refusée', 'L\'accès à la galerie est nécessaire pour exporter');
-        setExporting(false);
+      // Check then request write-only permission
+      let perm = await MediaLibrary.getPermissionsAsync(true);
+      if (perm.status !== 'granted' && perm.canAskAgain) {
+        perm = await MediaLibrary.requestPermissionsAsync(true);
+      }
+      if (perm.status !== 'granted') {
+        Alert.alert(
+          'Accès à la pellicule',
+          'Autorisez l\'accès à la pellicule pour y enregistrer votre récapitulatif.',
+          perm.canAskAgain
+            ? [{ text: 'OK' }]
+            : [
+                { text: 'Annuler', style: 'cancel' },
+                { text: 'Ouvrir les réglages', onPress: () => Linking.openSettings() },
+              ]
+        );
         return;
       }
 
@@ -168,7 +180,7 @@ export default function Index() {
         const uri = await viewShotRef.current.capture?.();
         if (uri) {
           // Save to gallery
-          await MediaLibrary.saveToLibraryAsync(uri);
+          await MediaLibrary.Asset.create(uri);
           Alert.alert('Succès', 'Récapitulatif exporté dans votre pellicule !');
         }
       }
@@ -288,7 +300,7 @@ export default function Index() {
           <View style={styles.header}>
             <Ionicons name="fitness" size={48} color="#FF6B35" />
             <Text style={styles.title}>Calculateur VMA</Text>
-            <Text style={styles.subtitle}>Calcul des zones d'entraînement</Text>
+            <Text style={styles.subtitle}>Calcul des zones d&apos;entraînement</Text>
             <Text style={styles.authorText}>by M.DURAND</Text>
           </View>
 
@@ -478,6 +490,7 @@ export default function Index() {
                             <Text style={styles.performanceCardTime}>en {perf.time}</Text>
                           </View>
                           <TouchableOpacity 
+                            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                             onPress={() => removePerformance(perf.id)}
                             style={styles.removeButton}
                             activeOpacity={0.7}
@@ -653,7 +666,7 @@ export default function Index() {
                 </ViewShot>
               )}
 
-              <Text style={styles.zonesTitle}>Zones d'entraînement</Text>
+              <Text style={styles.zonesTitle}>Zones d&apos;entraînement</Text>
               
               {result.zones.map((zone, index) => (
                 <View 
@@ -697,10 +710,10 @@ export default function Index() {
           {!result && (
             <View style={styles.infoSection}>
               <Ionicons name="information-circle" size={24} color="#FF6B35" />
-              <Text style={styles.infoTitle}>Qu'est-ce que la VMA ?</Text>
+              <Text style={styles.infoTitle}>Qu&apos;est-ce que la VMA ?</Text>
               <Text style={styles.infoText}>
                 La Vitesse Maximale Aérobie (VMA) est la vitesse de course à partir de laquelle 
-                votre consommation d'oxygène est maximale. C'est un indicateur clé pour 
+                votre consommation d&apos;oxygène est maximale. C&apos;est un indicateur clé pour 
                 planifier vos entraînements de course à pied.
               </Text>
             </View>
