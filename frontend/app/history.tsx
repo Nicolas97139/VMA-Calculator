@@ -17,6 +17,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ProgressChart, { ChartPoint } from '../src/components/ProgressChart';
 import RecordsCard from '../src/components/RecordsCard';
+import RunnerExportCard from '../src/components/RunnerExportCard';
 import GroupLeaderboard from '../src/components/GroupLeaderboard';
 import { formatSeconds, getPerformanceColor, parseDate, shortDate } from '../src/utils/vma';
 import { computeRecords } from '../src/utils/records';
@@ -160,6 +161,8 @@ export default function HistoryScreen() {
 
   const records = useMemo(() => computeRecords(sessions), [sessions]);
   const recordKeys = useMemo(() => new Set(records.map((r) => `${r.sessionId}-${r.index}`)), [records]);
+  const runnerGroupName =
+    runners.find((r) => `${r.first_name} ${r.last_name}`.toLowerCase() === runnerLabel.toLowerCase())?.group_name ?? null;
 
   const selectRunner = (fn: string, ln: string) => {
     setFirstName(fn);
@@ -386,6 +389,16 @@ export default function HistoryScreen() {
 
           {sessions.length > 0 && (
             <>
+              <RunnerExportCard
+                data={{
+                  firstName: sessions[0].first_name,
+                  lastName: sessions[0].last_name,
+                  groupName: runnerGroupName,
+                  sessions,
+                  records,
+                }}
+              />
+
               {/* Progress chart */}
               <View style={styles.card}>
                 <View style={styles.cardTitleRow}>
