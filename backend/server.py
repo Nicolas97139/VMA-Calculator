@@ -169,6 +169,13 @@ def make_runner_key(first_name: str, last_name: str) -> str:
     return f"{first_name.strip().casefold()}|{last_name.strip().casefold()}"
 
 
+class Runner(BaseModel):
+    first_name: str
+    last_name: str
+    session_count: int
+    last_session: datetime
+
+
 @api_router.post("/sessions", response_model=RunnerSession)
 async def create_session(input: RunnerSessionCreate):
     """Save a training session (all races) for a runner"""
@@ -189,6 +196,24 @@ async def get_sessions(first_name: str, last_name: str):
     key = make_runner_key(first_name, last_name)
     sessions = await db.runner_sessions.find({"runner_key": key}, {"_id": 0}).sort("created_at", -1).to_list(500)
     return sessions
+
+
+@api_router.get("/runners", response_model=List[Runner])
+async def get_runners():
+    """List every runner having at least one saved session"""
+    pipeline = [
+        {"$sort": {"created_at": -1}},
+        {"$group": {
+            "_id": "$runner_key",
+            "first_name": {"$first": "$first_name"},
+            "last_name": {"$first": "$last_name"},
+            "session_count": {"$sum": 1},
+            "last_session": {"$first": "$created_at"},
+        }},
+    ]
+    runners = await db.runner_sessions.aggregate(pipeline).to_list(1000)
+    runners.sort(key=lambda r: (r["last_name"].casefold(), r["first_name"].casefold()))
+    return [Runner(**{k: v for k, v in r.items() if k != "_id"}) for r in runners]
 
 
 @api_router.delete("/sessions/{session_id}")

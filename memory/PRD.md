@@ -11,7 +11,7 @@ French mobile app (Expo SDK 58 + FastAPI + MongoDB) to calculate VMA training zo
 - Expo SDK 58 upgrade (RN 0.88, React 19.3), vector icons → @react-native-vector-icons/ionicons, web output "single"
 
 - Runner history: "Enregistrer la séance" saves all races per runner (first+last name, case-insensitive) → `/api/sessions` (POST/GET/DELETE)
-- "Historique" screen (`app/history.tsx`): search by runner, sessions list with delete confirm, progress chart per distance (speed or time, best per session, best value + progression)
+- "Historique" screen (`app/history.tsx`): dropdown listing all runners (`GET /api/runners`: name, session count, last session), search by runner, sessions list with delete confirm, progress chart per distance (speed or time, best per session, best value + progression)
 
 ## Notes
 - Demo data: runner "Demo Coureur" has 4 seeded sessions

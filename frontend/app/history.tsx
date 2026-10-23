@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ProgressChart, { ChartPoint } from '../src/components/ProgressChart';
 import { formatSeconds, getPerformanceColor } from '../src/utils/vma';
@@ -38,6 +38,13 @@ interface RunnerSession {
   vma_value: number;
   performances: SessionPerformance[];
   created_at: string;
+}
+
+interface Runner {
+  first_name: string;
+  last_name: string;
+  session_count: number;
+  last_session: string;
 }
 
 type Metric = 'speed' | 'time';
@@ -65,6 +72,23 @@ export default function HistoryScreen() {
   const [selectedDistance, setSelectedDistance] = useState<number | null>(null);
   const [metric, setMetric] = useState<Metric>('speed');
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+  const [runners, setRunners] = useState<Runner[]>([]);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const fetchRunners = useCallback(async () => {
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/runners`);
+      if (res.ok) setRunners(await res.json());
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchRunners();
+    }, [fetchRunners])
+  );
 
   const fetchSessions = useCallback(async (fn: string, ln: string, isRefresh = false) => {
     if (!fn.trim() || !ln.trim()) {
@@ -144,11 +168,19 @@ export default function HistoryScreen() {
     return metric === 'speed' ? Math.max(...vals) : Math.min(...vals);
   }, [chartPoints, metric]);
 
+  const selectRunner = (r: Runner) => {
+    setFirstName(r.first_name);
+    setLastName(r.last_name);
+    setDropdownOpen(false);
+    fetchSessions(r.first_name, r.last_name);
+  };
+
   const deleteSession = async (id: string) => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/sessions/${id}`, { method: 'DELETE' });
       if (!res.ok) throw new Error('delete failed');
       setSessions((prev) => prev.filter((s) => s.id !== id));
+      fetchRunners();
     } catch (err) {
       console.error(err);
       setError('Impossible de supprimer la séance');
@@ -178,7 +210,10 @@ export default function HistoryScreen() {
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
-              onRefresh={() => fetchSessions(firstName, lastName, true)}
+              onRefresh={() => {
+                fetchRunners();
+                fetchSessions(firstName, lastName, true);
+              }}
               tintColor="#FF6B35"
             />
           }
@@ -188,6 +223,64 @@ export default function HistoryScreen() {
             <View style={styles.cardTitleRow}>
               <Ionicons name="person" size={20} color="#FF6B35" />
               <Text style={styles.cardTitle}>Coureur</Text>
+            </View>
+
+            {/* All runners dropdown */}
+            <Text style={styles.label}>Tous les coureurs</Text>
+            <TouchableOpacity
+              testID="runner-dropdown"
+              style={[styles.dropdown, dropdownOpen && styles.dropdownOpen]}
+              onPress={() => setDropdownOpen((o) => !o)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="people" size={18} color="#FF6B35" />
+              <Text style={[styles.dropdownText, !runnerLabel && styles.dropdownPlaceholder]} numberOfLines={1}>
+                {runnerLabel ||
+                  (runners.length > 0 ? `Choisir un coureur (${runners.length})` : 'Aucun coureur enregistré')}
+              </Text>
+              <Ionicons name={dropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#888" />
+            </TouchableOpacity>
+            {dropdownOpen && (
+              <View style={styles.dropdownList} testID="runner-dropdown-list">
+                {runners.length === 0 ? (
+                  <Text style={styles.dropdownEmpty}>Aucun coureur enregistré pour le moment</Text>
+                ) : (
+                  <ScrollView nestedScrollEnabled style={styles.dropdownScroll} keyboardShouldPersistTaps="handled">
+                    {runners.map((r) => {
+                      const label = `${r.first_name} ${r.last_name}`;
+                      const active = label.toLowerCase() === runnerLabel.toLowerCase();
+                      return (
+                        <TouchableOpacity
+                          key={label.toLowerCase()}
+                          testID={`runner-option-${r.first_name}-${r.last_name}`}
+                          style={[styles.dropdownItem, active && styles.dropdownItemActive]}
+                          onPress={() => selectRunner(r)}
+                          activeOpacity={0.7}
+                        >
+                          <View style={styles.avatar}>
+                            <Text style={styles.avatarText}>
+                              {`${r.first_name[0] ?? ''}${r.last_name[0] ?? ''}`.toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.flex}>
+                            <Text style={styles.dropdownItemName} numberOfLines={1}>{label}</Text>
+                            <Text style={styles.dropdownItemMeta}>
+                              {r.session_count} séance{r.session_count > 1 ? 's' : ''} · dernière le {shortDate(r.last_session)}
+                            </Text>
+                          </View>
+                          {active && <Ionicons name="checkmark" size={20} color="#FF6B35" />}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                )}
+              </View>
+            )}
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>ou rechercher</Text>
+              <View style={styles.dividerLine} />
             </View>
             <View style={styles.row}>
               <View style={styles.flex}>
@@ -405,6 +498,53 @@ const styles = StyleSheet.create({
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   cardTitle: { fontSize: 16, fontWeight: 'bold', color: '#FFF', flexShrink: 1 },
   row: { flexDirection: 'row', gap: 12 },
+  dropdown: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    height: 48,
+    borderWidth: 1,
+    borderColor: '#2A2A2A',
+  },
+  dropdownOpen: { borderColor: '#FF6B35' },
+  dropdownText: { flex: 1, fontSize: 16, color: '#FFF', fontWeight: '600' },
+  dropdownPlaceholder: { color: '#888', fontWeight: '400' },
+  dropdownList: {
+    backgroundColor: '#2A2A2A',
+    borderRadius: 10,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  dropdownScroll: { maxHeight: 280 },
+  dropdownEmpty: { color: '#888', fontSize: 14, padding: 16, textAlign: 'center' },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 12,
+    minHeight: 56,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#3A3A3A',
+  },
+  dropdownItemActive: { backgroundColor: 'rgba(255,107,53,0.12)' },
+  avatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FF6B35',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: '#FFF', fontWeight: 'bold', fontSize: 13 },
+  dropdownItemName: { fontSize: 15, fontWeight: '600', color: '#FFF' },
+  dropdownItemMeta: { fontSize: 12, color: '#888', marginTop: 2 },
+  dividerRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginVertical: 16 },
+  dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: '#444' },
+  dividerText: { fontSize: 12, color: '#888' },
   label: { fontSize: 12, color: '#888', marginBottom: 6 },
   input: {
     backgroundColor: '#2A2A2A',
