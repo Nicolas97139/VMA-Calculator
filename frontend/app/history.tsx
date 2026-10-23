@@ -389,16 +389,6 @@ export default function HistoryScreen() {
 
           {sessions.length > 0 && (
             <>
-              <RunnerExportCard
-                data={{
-                  firstName: sessions[0].first_name,
-                  lastName: sessions[0].last_name,
-                  groupName: runnerGroupName,
-                  sessions,
-                  records,
-                }}
-              />
-
               {/* Progress chart */}
               <View style={styles.card}>
                 <View style={styles.cardTitleRow}>
@@ -539,6 +529,17 @@ export default function HistoryScreen() {
                   </View>
                 );
               })}
+
+              <View style={styles.exportSpacer} />
+              <RunnerExportCard
+                data={{
+                  firstName: sessions[0].first_name,
+                  lastName: sessions[0].last_name,
+                  groupName: runnerGroupName,
+                  sessions,
+                  records,
+                }}
+              />
             </>
           )}
         </ScrollView>
@@ -691,6 +692,7 @@ const styles = StyleSheet.create({
   perfDetail: { fontSize: 13, color: '#BBB', flex: 1 },
   perfPercent: { fontSize: 14, fontWeight: 'bold', width: 48, textAlign: 'right' },
   trophySpacer: { width: 14 },
+  exportSpacer: { height: 8 },
   confirmRow: {
     flexDirection: 'row',
     alignItems: 'center',
