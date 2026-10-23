@@ -31,3 +31,12 @@ export interface Group {
   name: string;
   member_count: number;
 }
+
+export interface Runner {
+  first_name: string;
+  last_name: string;
+  session_count: number;
+  last_session: string;
+  group_id: string | null;
+  group_name: string | null;
+}

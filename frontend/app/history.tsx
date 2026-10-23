@@ -20,18 +20,9 @@ import RecordsCard from '../src/components/RecordsCard';
 import GroupLeaderboard from '../src/components/GroupLeaderboard';
 import { formatSeconds, getPerformanceColor, parseDate, shortDate } from '../src/utils/vma';
 import { computeRecords } from '../src/utils/records';
-import { Group, RunnerSession } from '../src/types/session';
+import { Group, Runner, RunnerSession } from '../src/types/session';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-
-interface Runner {
-  first_name: string;
-  last_name: string;
-  session_count: number;
-  last_session: string;
-  group_id: string | null;
-  group_name: string | null;
-}
 
 type Metric = 'speed' | 'time';
 
@@ -162,6 +153,11 @@ export default function HistoryScreen() {
   );
   const selectedGroup = groups.find((g) => g.id === groupFilter);
 
+  // Reset the filter if its group was deleted
+  useEffect(() => {
+    if (groupFilter && !groups.some((g) => g.id === groupFilter)) setGroupFilter(null);
+  }, [groups, groupFilter]);
+
   const records = useMemo(() => computeRecords(sessions), [sessions]);
   const recordKeys = useMemo(() => new Set(records.map((r) => `${r.sessionId}-${r.index}`)), [records]);
 
@@ -192,11 +188,24 @@ export default function HistoryScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.topBar}>
-        <TouchableOpacity testID="history-back-button" onPress={goBack} style={styles.backButton} activeOpacity={0.7}>
-          <Ionicons name="chevron-back" size={26} color="#FFF" />
-        </TouchableOpacity>
+        <View style={styles.topBarSide}>
+          <TouchableOpacity testID="history-back-button" onPress={goBack} style={styles.backButton} activeOpacity={0.7}>
+            <Ionicons name="chevron-back" size={26} color="#FFF" />
+          </TouchableOpacity>
+        </View>
         <Text style={styles.topBarTitle}>Historique</Text>
-        <View style={styles.backButton} />
+        <View style={[styles.topBarSide, styles.topBarSideRight]}>
+          <TouchableOpacity
+            testID="manage-groups-button"
+            style={styles.manageButton}
+            onPress={() => router.push('/groups')}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="people" size={16} color="#FF6B35" />
+            <Text style={styles.manageButtonText}>Groupes</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
@@ -538,7 +547,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  topBarTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
+  topBarTitle: { flex: 1, fontSize: 18, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
+  topBarSide: { width: 110 },
+  topBarSideRight: { alignItems: 'flex-end', paddingRight: 8 },
+  manageButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  manageButtonText: { color: '#FF6B35', fontSize: 13, fontWeight: '600' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
   card: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 16, marginBottom: 16 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },

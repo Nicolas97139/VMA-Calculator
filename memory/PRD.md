@@ -14,6 +14,7 @@ French mobile app (Expo SDK 58 + FastAPI + MongoDB) to calculate VMA training zo
 - "Historique" screen (`app/history.tsx`): dropdown listing all runners (`GET /api/runners`: name, session count, last session), search by runner, sessions list with delete confirm, progress chart per distance (speed or time, best per session, best value + progression)
 - Personal records: "Records personnels" card in Historique (best time per distance, trophy icons on record runs); POST /api/sessions returns `new_records` → gold "Nouveau record !" badge on main screen
 - Training groups (one per runner): GroupPicker in "Informations coureur" (create new group, prefill from `/api/runners/profile`), `/api/groups` (GET/POST), runners filtered by group chips in Historique, group leaderboard per distance (`/api/groups/{id}/leaderboard`)
+- Group management screen (`app/groups.tsx`, "Groupes" button in Historique): create, rename (duplicate check), delete (runners & sessions kept, they become "Sans groupe"), move a runner to another group (`PUT /api/groups/{id}`, `DELETE /api/groups/{id}`, `PUT /api/runners/group`)
 
 ## Notes
 - Demo data: group "Club Demo" (Demo Coureur, Marie Leroy)

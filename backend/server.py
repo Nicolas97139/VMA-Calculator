@@ -370,6 +370,61 @@ async def create_group(input: GroupCreate):
     return GroupWithCount(id=group.id, name=group.name, member_count=0)
 
 
+@api_router.put("/groups/{group_id}", response_model=GroupWithCount)
+async def rename_group(group_id: str, input: GroupCreate):
+    name = input.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Nom de groupe requis")
+    if not await db.groups.find_one({"id": group_id}):
+        raise HTTPException(status_code=404, detail="Groupe non trouvé")
+    if await db.groups.find_one({"name_key": name.casefold(), "id": {"$ne": group_id}}):
+        raise HTTPException(status_code=409, detail="Un groupe porte déjà ce nom")
+    await db.groups.update_one({"id": group_id}, {"$set": {"name": name, "name_key": name.casefold()}})
+    count = await db.runner_profiles.count_documents({"group_id": group_id})
+    return GroupWithCount(id=group_id, name=name, member_count=count)
+
+
+@api_router.delete("/groups/{group_id}")
+async def delete_group(group_id: str):
+    """Delete a group: its runners and their sessions are kept, they just leave the group"""
+    result = await db.groups.delete_one({"id": group_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Groupe non trouvé")
+    await db.runner_profiles.update_many({"group_id": group_id}, {"$set": {"group_id": None}})
+    return {"message": "Groupe supprimé"}
+
+
+class RunnerGroupUpdate(BaseModel):
+    first_name: str = Field(min_length=1)
+    last_name: str = Field(min_length=1)
+    group_id: Optional[str] = None
+
+
+@api_router.put("/runners/group", response_model=RunnerProfile)
+async def set_runner_group(input: RunnerGroupUpdate):
+    """Move a runner to another group (group_id null = no group)"""
+    first, last = input.first_name.strip(), input.last_name.strip()
+    if not first or not last:
+        raise HTTPException(status_code=400, detail="Prénom et nom requis")
+    group = None
+    if input.group_id:
+        group = await db.groups.find_one({"id": input.group_id}, {"_id": 0})
+        if not group:
+            raise HTTPException(status_code=404, detail="Groupe non trouvé")
+    key = make_runner_key(first, last)
+    await db.runner_profiles.update_one(
+        {"runner_key": key},
+        {"$set": {"runner_key": key, "first_name": first, "last_name": last, "group_id": input.group_id}},
+        upsert=True,
+    )
+    return RunnerProfile(
+        first_name=first,
+        last_name=last,
+        group_id=input.group_id,
+        group_name=group["name"] if group else None,
+    )
+
+
 @api_router.get("/groups/{group_id}/leaderboard", response_model=List[DistanceLeaderboard])
 async def group_leaderboard(group_id: str):
     """Best time of each group member for every distance, fastest first"""

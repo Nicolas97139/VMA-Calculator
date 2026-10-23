@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 4 end-to-end testing of the 'gestion des groupes' feature (rename / delete groups + move runners from History). Backend: 13/13 pytest cases pass (PUT /api/groups/{id} success + 409 duplicate case-insensitive + 422 empty + 404 unknown + same-name no-op; DELETE /api/groups/{id} 200 clears runner_profiles.group_id while keeping runners + sessions, 404 unknown; PUT /api/runners/group 200 to group / to null, 404 unknown group, reflected in GET /api/runners and GET /api/runners/profile; POST /api/sessions still works with/without group and 404s on unknown group). Frontend (390x844 mobile viewport): all 15 UI steps pass - top-right 'Groupes' button (manage-groups-button) opens /groups; groups-back-button returns to history; empty name shows inline 'Entrez un nom de groupe' (groups-error); creating TEST_UI_Alpha / TEST_UI_Beta works via groups-new-input + groups-create-button; rename pencil opens inline input; duplicate rename shows 'Un groupe porte déjà ce nom'; successful rename updates the row; runner-row toggles chips; move-<First>-<Last>-<group> updates the label to the new group name and member counts; delete-group inline confirm (confirm-delete-group-*) removes the group. Filter-reset scenario: creating a group, selecting it as History filter (group-filter-<name>), then deleting it, then returning to History - filter resets to 'Tous', deleted chip is gone, dropdown repopulates with all 4 runners (no empty broken list). Deleted group also disappears from the main-screen GroupPicker. Seed data preserved: Club Demo + its 2 members, Jean & Jeanne Dupont without group, all 11 sessions intact.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_group_management_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py: PUT /api/groups/{id} correctly rejects name collision case-insensitively via name_key index while allowing a group to keep its own name (id != group_id filter).",
+    "server.py: DELETE /api/groups cascades to runner_profiles via update_many({group_id: gid}, {group_id: null}) - sessions are untouched, matching spec.",
+    "frontend/app/history.tsx: useEffect reset-filter guard (lines 157-159) correctly nulls groupFilter when the group disappears from the groups list; GroupPicker.tsx has the equivalent guard (lines 43-45).",
+    "GroupRow.tsx: when rename returns 409, onRename resolves with 'Un groupe porte déjà ce nom' and the component stays in edit mode - good UX.",
+    "RunnerGroupRow move optimistically disables all chips via busyId; after onMove awaits load() in parent, labels and member counts are refreshed from the server (no local-state drift).",
+    "frontend/app/index.tsx is still 1622 lines (>700 threshold reported in iter_3) - still non-blocking but worth splitting.",
+    "Minor: creating a duplicate group via POST /api/groups silently returns the existing one (not a 409), which is intentional per iter_3 design but inconsistent with the PUT behavior. Confirmed non-blocking as the groups.tsx create path handles it gracefully."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_group_management_api.py (new - 13 tests)",
+    "/app/test_reports/pytest/pytest_results.xml (regenerated)"
+  ],
+  "success_rate": {"backend": "100% (13/13 new, cumulative 43/43)", "frontend": "100% (all 15 UI steps + 6 filter-reset steps)"},
+  "seed_data_creation": "TEST_* groups (TEST_UI_Alpha/Beta/Alpha2, TEST_FilterGrp, TEST_<hex>_Group_A/B) and TEST_<hex> runner profile + session were created and cleaned up. Verified final state: Club Demo preserved with Demo Coureur + Marie Leroy; Jean & Jeanne Dupont back to no-group; no TEST_ artefacts remain in /api/groups or /api/runners.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All group management flows (rename/delete/move) are fully functional end-to-end. The /app/backend/tests/test_group_management_api.py suite covers all new endpoints and can be reused as regression. Seed: group 'Club Demo' (id 4cd34458-...) with Demo Coureur + Marie Leroy; Jean & Jeanne Dupont without group. Any new testing agent should prefix test groups with TEST_ and clean up via DELETE /api/groups/{id} + PUT /api/runners/group with group_id=null for seed runners if moved.",
+  "rca_of_issue": "N/A - no issues found."
+}

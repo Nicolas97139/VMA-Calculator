@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import Ionicons from '@react-native-vector-icons/ionicons';
+import { useFocusEffect } from 'expo-router';
 import { Group } from '../types/session';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
@@ -17,19 +18,31 @@ export default function GroupPicker({ value, onChange }: Props) {
   const [newName, setNewName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
   const loadGroups = useCallback(async () => {
     try {
       const res = await fetch(`${BACKEND_URL}/api/groups`);
-      if (res.ok) setGroups(await res.json());
+      if (res.ok) {
+        setGroups(await res.json());
+        setLoaded(true);
+      }
     } catch (err) {
       console.error(err);
     }
   }, []);
 
+  // Reload when the screen regains focus (groups may have been edited elsewhere)
+  useFocusEffect(
+    useCallback(() => {
+      loadGroups();
+    }, [loadGroups])
+  );
+
+  // Drop a selection whose group was deleted
   useEffect(() => {
-    loadGroups();
-  }, [loadGroups]);
+    if (loaded && value && !groups.some((g) => g.id === value)) onChange(null);
+  }, [loaded, value, groups, onChange]);
 
   const selected = groups.find((g) => g.id === value);
 
