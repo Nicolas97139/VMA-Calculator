@@ -18,7 +18,9 @@ import Ionicons from '@react-native-vector-icons/ionicons';
 import * as MediaLibrary from 'expo-media-library';
 import ViewShot from 'react-native-view-shot';
 import { useRouter } from 'expo-router';
-import { getZoneColor } from '../src/utils/vma';
+import { formatSeconds, getZoneColor } from '../src/utils/vma';
+import GroupPicker from '../src/components/GroupPicker';
+import { NewRecord } from '../src/types/session';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -60,6 +62,7 @@ export default function Index() {
   // Runner info
   const [runnerFirstName, setRunnerFirstName] = useState('');
   const [runnerLastName, setRunnerLastName] = useState('');
+  const [runnerGroupId, setRunnerGroupId] = useState<string | null>(null);
   
   // Performance analysis states
   const [distanceInput, setDistanceInput] = useState('');
@@ -74,7 +77,7 @@ export default function Index() {
 
   // Session saving states
   const [saving, setSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string } | null>(null);
+  const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string; records?: NewRecord[] } | null>(null);
 
   // Any change in races invalidates the "saved" status
   useEffect(() => {
@@ -86,6 +89,20 @@ export default function Index() {
       pathname: '/history',
       params: { firstName: runnerFirstName.trim(), lastName: runnerLastName.trim() },
     });
+  };
+
+  // Prefill the group of a known runner once both names are entered
+  const loadRunnerProfile = async () => {
+    if (!runnerFirstName.trim() || !runnerLastName.trim()) return;
+    try {
+      const qs = `first_name=${encodeURIComponent(runnerFirstName.trim())}&last_name=${encodeURIComponent(runnerLastName.trim())}`;
+      const res = await fetch(`${BACKEND_URL}/api/runners/profile?${qs}`);
+      if (!res.ok) return;
+      const profile: { group_id: string | null } = await res.json();
+      if (profile.group_id) setRunnerGroupId(profile.group_id);
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const saveSession = async () => {
@@ -103,6 +120,7 @@ export default function Index() {
           first_name: runnerFirstName.trim(),
           last_name: runnerLastName.trim(),
           vma_value: result.vma_value,
+          group_id: runnerGroupId,
           // Chronological order (list is displayed newest first)
           performances: [...performances].reverse().map((p) => ({
             distance: p.distance,
@@ -117,7 +135,8 @@ export default function Index() {
         }),
       });
       if (!response.ok) throw new Error('save failed');
-      setSaveStatus({ ok: true, message: 'Séance enregistrée dans l\'historique' });
+      const saved: { new_records: NewRecord[] } = await response.json();
+      setSaveStatus({ ok: true, message: 'Séance enregistrée dans l\'historique', records: saved.new_records });
     } catch (err) {
       console.error('Save session error:', err);
       setSaveStatus({ ok: false, message: 'Impossible d\'enregistrer la séance' });
@@ -184,6 +203,7 @@ export default function Index() {
     setAnalysisError(null);
     setRunnerFirstName('');
     setRunnerLastName('');
+    setRunnerGroupId(null);
   };
 
   const exportToGallery = async () => {
@@ -427,6 +447,7 @@ export default function Index() {
                       style={styles.runnerInput}
                       value={runnerFirstName}
                       onChangeText={setRunnerFirstName}
+                      onBlur={loadRunnerProfile}
                       placeholder="Jean"
                       placeholderTextColor="#666"
                     />
@@ -437,10 +458,14 @@ export default function Index() {
                       style={styles.runnerInput}
                       value={runnerLastName}
                       onChangeText={setRunnerLastName}
+                      onBlur={loadRunnerProfile}
                       placeholder="Dupont"
                       placeholderTextColor="#666"
                     />
                   </View>
+                </View>
+                <View style={styles.groupPickerWrapper}>
+                  <GroupPicker value={runnerGroupId} onChange={setRunnerGroupId} />
                 </View>
               </View>
 
@@ -654,6 +679,22 @@ export default function Index() {
                   </TouchableOpacity>
                   {saveStatus && (
                     <View style={styles.saveStatusRow}>
+                      {saveStatus.records && saveStatus.records.length > 0 && (
+                        <View style={styles.recordBadge} testID="new-record-badge">
+                          <View style={styles.recordBadgeHeader}>
+                            <Ionicons name="trophy" size={22} color="#121212" />
+                            <Text style={styles.recordBadgeTitle}>Nouveau record !</Text>
+                          </View>
+                          {saveStatus.records.map((r) => (
+                            <Text key={r.distance} style={styles.recordBadgeLine}>
+                              {r.distance} m en {r.time}
+                              {r.improvement_seconds !== null
+                                ? `  (−${formatSeconds(r.improvement_seconds)})`
+                                : '  · premier temps'}
+                            </Text>
+                          ))}
+                        </View>
+                      )}
                       <Text
                         testID="save-status-text"
                         style={[styles.saveStatusText, { color: saveStatus.ok ? '#4CAF50' : '#FF5252' }]}
@@ -1380,6 +1421,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     gap: 6,
+  },
+  groupPickerWrapper: {
+    marginTop: 12,
+  },
+  recordBadge: {
+    alignSelf: 'stretch',
+    backgroundColor: '#FFD700',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 4,
+  },
+  recordBadgeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  recordBadgeTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#121212',
+  },
+  recordBadgeLine: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#121212',
+    marginTop: 2,
   },
   saveStatusText: {
     fontSize: 14,

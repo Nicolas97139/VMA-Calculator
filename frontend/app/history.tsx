@@ -16,44 +16,24 @@ import { StatusBar } from 'expo-status-bar';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import ProgressChart, { ChartPoint } from '../src/components/ProgressChart';
-import { formatSeconds, getPerformanceColor } from '../src/utils/vma';
+import RecordsCard from '../src/components/RecordsCard';
+import GroupLeaderboard from '../src/components/GroupLeaderboard';
+import { formatSeconds, getPerformanceColor, parseDate, shortDate } from '../src/utils/vma';
+import { computeRecords } from '../src/utils/records';
+import { Group, RunnerSession } from '../src/types/session';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
-
-interface SessionPerformance {
-  distance: number;
-  time: string;
-  time_seconds: number;
-  speed: number;
-  pace: string;
-  percentage: number;
-  zone_name: string | null;
-  zone_index: number;
-}
-
-interface RunnerSession {
-  id: string;
-  first_name: string;
-  last_name: string;
-  vma_value: number;
-  performances: SessionPerformance[];
-  created_at: string;
-}
 
 interface Runner {
   first_name: string;
   last_name: string;
   session_count: number;
   last_session: string;
+  group_id: string | null;
+  group_name: string | null;
 }
 
 type Metric = 'speed' | 'time';
-
-// Backend returns naive UTC datetimes: make sure they are parsed as UTC
-const parseDate = (iso: string) => new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`);
-
-const shortDate = (iso: string) =>
-  parseDate(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
 
 const longDate = (iso: string) =>
   parseDate(iso).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
@@ -74,11 +54,19 @@ export default function HistoryScreen() {
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const [runners, setRunners] = useState<Runner[]>([]);
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupFilter, setGroupFilter] = useState<string | null>(null);
+  const [leaderboardKey, setLeaderboardKey] = useState(0);
 
   const fetchRunners = useCallback(async () => {
     try {
-      const res = await fetch(`${BACKEND_URL}/api/runners`);
-      if (res.ok) setRunners(await res.json());
+      const [runnersRes, groupsRes] = await Promise.all([
+        fetch(`${BACKEND_URL}/api/runners`),
+        fetch(`${BACKEND_URL}/api/groups`),
+      ]);
+      if (runnersRes.ok) setRunners(await runnersRes.json());
+      if (groupsRes.ok) setGroups(await groupsRes.json());
+      setLeaderboardKey((k) => k + 1);
     } catch (err) {
       console.error(err);
     }
@@ -168,11 +156,20 @@ export default function HistoryScreen() {
     return metric === 'speed' ? Math.max(...vals) : Math.min(...vals);
   }, [chartPoints, metric]);
 
-  const selectRunner = (r: Runner) => {
-    setFirstName(r.first_name);
-    setLastName(r.last_name);
+  const filteredRunners = useMemo(
+    () => (groupFilter ? runners.filter((r) => r.group_id === groupFilter) : runners),
+    [runners, groupFilter]
+  );
+  const selectedGroup = groups.find((g) => g.id === groupFilter);
+
+  const records = useMemo(() => computeRecords(sessions), [sessions]);
+  const recordKeys = useMemo(() => new Set(records.map((r) => `${r.sessionId}-${r.index}`)), [records]);
+
+  const selectRunner = (fn: string, ln: string) => {
+    setFirstName(fn);
+    setLastName(ln);
     setDropdownOpen(false);
-    fetchSessions(r.first_name, r.last_name);
+    fetchSessions(fn, ln);
   };
 
   const deleteSession = async (id: string) => {
@@ -225,8 +222,38 @@ export default function HistoryScreen() {
               <Text style={styles.cardTitle}>Coureur</Text>
             </View>
 
+            {groups.length > 0 && (
+              <>
+                <Text style={styles.label}>Groupe</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsRow}>
+                  <TouchableOpacity
+                    testID="group-filter-all"
+                    style={[styles.chip, !groupFilter && styles.chipActive]}
+                    onPress={() => setGroupFilter(null)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.chipText, !groupFilter && styles.chipTextActive]}>Tous</Text>
+                  </TouchableOpacity>
+                  {groups.map((g) => {
+                    const active = g.id === groupFilter;
+                    return (
+                      <TouchableOpacity
+                        key={g.id}
+                        testID={`group-filter-${g.name}`}
+                        style={[styles.chip, active && styles.chipActive]}
+                        onPress={() => setGroupFilter(g.id)}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={[styles.chipText, active && styles.chipTextActive]}>{g.name}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </>
+            )}
+
             {/* All runners dropdown */}
-            <Text style={styles.label}>Tous les coureurs</Text>
+            <Text style={styles.label}>{selectedGroup ? `Coureurs – ${selectedGroup.name}` : 'Tous les coureurs'}</Text>
             <TouchableOpacity
               testID="runner-dropdown"
               style={[styles.dropdown, dropdownOpen && styles.dropdownOpen]}
@@ -236,17 +263,19 @@ export default function HistoryScreen() {
               <Ionicons name="people" size={18} color="#FF6B35" />
               <Text style={[styles.dropdownText, !runnerLabel && styles.dropdownPlaceholder]} numberOfLines={1}>
                 {runnerLabel ||
-                  (runners.length > 0 ? `Choisir un coureur (${runners.length})` : 'Aucun coureur enregistré')}
+                  (filteredRunners.length > 0 ? `Choisir un coureur (${filteredRunners.length})` : 'Aucun coureur enregistré')}
               </Text>
               <Ionicons name={dropdownOpen ? 'chevron-up' : 'chevron-down'} size={20} color="#888" />
             </TouchableOpacity>
             {dropdownOpen && (
               <View style={styles.dropdownList} testID="runner-dropdown-list">
-                {runners.length === 0 ? (
-                  <Text style={styles.dropdownEmpty}>Aucun coureur enregistré pour le moment</Text>
+                {filteredRunners.length === 0 ? (
+                  <Text style={styles.dropdownEmpty}>
+                    {selectedGroup ? 'Aucun coureur dans ce groupe' : 'Aucun coureur enregistré pour le moment'}
+                  </Text>
                 ) : (
                   <ScrollView nestedScrollEnabled style={styles.dropdownScroll} keyboardShouldPersistTaps="handled">
-                    {runners.map((r) => {
+                    {filteredRunners.map((r) => {
                       const label = `${r.first_name} ${r.last_name}`;
                       const active = label.toLowerCase() === runnerLabel.toLowerCase();
                       return (
@@ -254,7 +283,7 @@ export default function HistoryScreen() {
                           key={label.toLowerCase()}
                           testID={`runner-option-${r.first_name}-${r.last_name}`}
                           style={[styles.dropdownItem, active && styles.dropdownItemActive]}
-                          onPress={() => selectRunner(r)}
+                          onPress={() => selectRunner(r.first_name, r.last_name)}
                           activeOpacity={0.7}
                         >
                           <View style={styles.avatar}>
@@ -265,6 +294,7 @@ export default function HistoryScreen() {
                           <View style={styles.flex}>
                             <Text style={styles.dropdownItemName} numberOfLines={1}>{label}</Text>
                             <Text style={styles.dropdownItemMeta}>
+                              {r.group_name ? `${r.group_name} · ` : ''}
                               {r.session_count} séance{r.session_count > 1 ? 's' : ''} · dernière le {shortDate(r.last_session)}
                             </Text>
                           </View>
@@ -327,6 +357,15 @@ export default function HistoryScreen() {
               )}
             </TouchableOpacity>
           </View>
+
+          {selectedGroup && (
+            <GroupLeaderboard
+              groupId={selectedGroup.id}
+              groupName={selectedGroup.name}
+              refreshKey={leaderboardKey}
+              onSelectRunner={selectRunner}
+            />
+          )}
 
           {searched && sessions.length === 0 && !loading && (
             <View style={styles.emptyState} testID="history-empty">
@@ -414,6 +453,8 @@ export default function HistoryScreen() {
                 )}
               </View>
 
+              <RecordsCard records={records} />
+
               {/* Sessions list */}
               <Text style={styles.sectionTitle}>Séances ({sessions.length})</Text>
               {sessions.map((s) => {
@@ -448,6 +489,11 @@ export default function HistoryScreen() {
                         <Text style={styles.perfDistance}>{p.distance} m</Text>
                         <Text style={styles.perfDetail}>{p.time}</Text>
                         <Text style={styles.perfDetail}>{p.speed} km/h</Text>
+                        {recordKeys.has(`${s.id}-${i}`) ? (
+                          <Ionicons name="trophy" size={14} color="#FFD700" testID={`record-icon-${s.id}-${i}`} />
+                        ) : (
+                          <View style={styles.trophySpacer} />
+                        )}
                         <Text style={[styles.perfPercent, { color: getPerformanceColor(p.zone_index) }]}>
                           {p.percentage}%
                         </Text>
@@ -611,6 +657,7 @@ const styles = StyleSheet.create({
   perfDistance: { fontSize: 14, fontWeight: '600', color: '#FFF', width: 70 },
   perfDetail: { fontSize: 13, color: '#BBB', flex: 1 },
   perfPercent: { fontSize: 14, fontWeight: 'bold', width: 48, textAlign: 'right' },
+  trophySpacer: { width: 14 },
   confirmRow: {
     flexDirection: 'row',
     alignItems: 'center',

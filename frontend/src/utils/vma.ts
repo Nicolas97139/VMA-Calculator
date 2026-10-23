@@ -17,6 +17,12 @@ export const getPerformanceColor = (zoneIndex: number): string => {
   return zoneIndex === -1 ? '#4CAF50' : '#F44336';
 };
 
+// Backend returns naive UTC datetimes: make sure they are parsed as UTC
+export const parseDate = (iso: string) => new Date(/[zZ]|[+-]\d\d:\d\d$/.test(iso) ? iso : `${iso}Z`);
+
+export const shortDate = (iso: string) =>
+  parseDate(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+
 export const formatSeconds = (totalSeconds: number): string => {
   const s = Math.round(totalSeconds);
   const h = Math.floor(s / 3600);

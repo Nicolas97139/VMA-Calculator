@@ -1,0 +1,34 @@
+{
+  "summary": "End-to-end testing of new 'Records personnels et groupes d'entrainement' feature. Backend: 12/12 new pytest cases pass covering groups CRUD, runner profile prefill, group filter + leaderboard, group_id persistence, and new_records detection (first time -> previous null; faster -> improvement_seconds set; slower -> not included). Frontend web preview (390x844): full flow passes - VMA calc -> fill Demo Coureur -> GroupPicker opens list (group-picker-list) showing group-option-none, existing group-option-Club Demo, new-group-option. Created a new group via new-group-input + create-group-button (auto-selected). Added 1000m 3:50 (faster than seed best 4:00); saving shows gold 'Nouveau record !' badge (new-record-badge) with text '1000 m en 3:50 (−0:10)'. Navigation to history via save-status-history-link works. On /history: records-card displays record-1000 '3:50 15.7 km/h'; group-filter-all / group-filter-Club Demo chips filter runner dropdown; selecting Club Demo shows group-leaderboard with leaderboard-distance-1000 chip and leaderboard-row-1 (Demo Coureur 3:50, gold) and row-2 (Marie Leroy 4:20, silver); 3 trophy icons (record-icon-*) appear in Demo Coureur's session list (one per per-distance best). Deleted test session via confirm-delete-<id>. All regression flows (VMA calc, zones, race analysis, average, dropdown, chart) still work.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_vma_api.py",
+    "/app/backend/tests/test_sessions_api.py",
+    "/app/backend/tests/test_groups_records_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py now 430 lines - still well under threshold. Groups/leaderboard/records logic cleanly separated.",
+    "best_by_distance() ties: on identical time_seconds the FIRST session wins (dict insertion order from oldest-sorted iteration). Matches frontend computeRecords() semantics (earliest keeps). Consistent across stack.",
+    "POST /api/sessions: group_id is NOT persisted on the session document itself - only on runner_profile. This is by design per spec (one group per runner) but means historical group membership isn't preserved per session. Non-blocking.",
+    "frontend/app/index.tsx is still 1622 lines (>700 threshold). Still non-blocking but could be split (GroupPicker extraction already done; next candidates: PerformanceAnalysis, SaveSessionSection, ExportView).",
+    "GroupPicker.loadGroups is called on mount and on toggle-open: fresh counts after creation. Good.",
+    "GroupLeaderboard uses refreshKey to re-fetch after a session is added/deleted in history - good pattern."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_groups_records_api.py (new - 12 tests: groups CRUD, idempotent create, 404s, leaderboard order, profile case-insensitive, runners group filter, new_records 3-state scenario, group upsert on session)"
+  ],
+  "success_rate": {"backend": "100% (12/12 new, cumulative 30/30 with prior iterations)", "frontend": "100% (all 8 critical flows verified)"},
+  "seed_data_creation": "Transient TEST_* groups/profiles/sessions created during tests were cleaned up (verified: 3 TEST_ groups + 2 TEST_ profiles removed). Seed data preserved: Demo Coureur 5 sessions, Marie Leroy 2 sessions, Club Demo group intact.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New endpoints: GET/POST /api/groups (idempotent case-insensitive by name_key=name.casefold()); GET /api/groups/{id}/leaderboard (404 if unknown); GET /api/runners?group_id=; GET /api/runners/profile?first_name&last_name (case-insensitive via runner_key). POST /api/sessions now accepts optional group_id (404 if unknown), upserts group on runner_profiles, returns new_records[] with distance/time/time_seconds/previous_time_seconds/improvement_seconds. Frontend new testIDs: group-picker, group-picker-list, group-option-none, group-option-<name>, new-group-option, new-group-input, create-group-button, new-record-badge, records-card, record-<distance>, group-filter-all, group-filter-<name>, group-leaderboard, leaderboard-distance-<d>, leaderboard-row-<rank>, record-icon-<sessionId>-<index>. All existing testIDs (open-history-button, save-session-button, runner-dropdown, distance-chip-<n>, metric-speed/time, session-card-<id>, delete-session-<id>, confirm-delete-<id>) still work.",
+  "rca_of_issue": "N/A - no bugs found."
+}

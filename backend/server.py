@@ -152,21 +152,33 @@ class SessionPerformance(BaseModel):
     zone_index: int
 
 
-class RunnerSessionCreate(BaseModel):
+class RunnerSessionBase(BaseModel):
     first_name: str = Field(min_length=1)
     last_name: str = Field(min_length=1)
     vma_value: float = Field(gt=0, le=30)
     performances: List[SessionPerformance] = Field(min_length=1)
 
 
-class RunnerSession(RunnerSessionCreate):
+class RunnerSessionCreate(RunnerSessionBase):
+    group_id: Optional[str] = None
+
+
+class RunnerSession(RunnerSessionBase):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     runner_key: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-def make_runner_key(first_name: str, last_name: str) -> str:
-    return f"{first_name.strip().casefold()}|{last_name.strip().casefold()}"
+class NewRecord(BaseModel):
+    distance: float
+    time: str
+    time_seconds: int
+    previous_time_seconds: Optional[int] = None
+    improvement_seconds: Optional[int] = None
+
+
+class RunnerSessionSaved(RunnerSession):
+    new_records: List[NewRecord] = []
 
 
 class Runner(BaseModel):
@@ -174,20 +186,101 @@ class Runner(BaseModel):
     last_name: str
     session_count: int
     last_session: datetime
+    group_id: Optional[str] = None
+    group_name: Optional[str] = None
 
 
-@api_router.post("/sessions", response_model=RunnerSession)
+class RunnerProfile(BaseModel):
+    first_name: str
+    last_name: str
+    group_id: Optional[str] = None
+    group_name: Optional[str] = None
+
+
+class GroupCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=50)
+
+
+class Group(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    name_key: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class GroupWithCount(BaseModel):
+    id: str
+    name: str
+    member_count: int
+
+
+class LeaderboardEntry(BaseModel):
+    first_name: str
+    last_name: str
+    time: str
+    time_seconds: int
+    speed: float
+    date: datetime
+
+
+class DistanceLeaderboard(BaseModel):
+    distance: float
+    entries: List[LeaderboardEntry]
+
+
+def make_runner_key(first_name: str, last_name: str) -> str:
+    return f"{first_name.strip().casefold()}|{last_name.strip().casefold()}"
+
+
+def best_by_distance(sessions: List[dict]) -> dict:
+    """Fastest run per distance: {distance: (performance, session)}"""
+    best = {}
+    for s in sessions:
+        for p in s["performances"]:
+            d = p["distance"]
+            if d not in best or p["time_seconds"] < best[d][0]["time_seconds"]:
+                best[d] = (p, s)
+    return best
+
+
+@api_router.post("/sessions", response_model=RunnerSessionSaved)
 async def create_session(input: RunnerSessionCreate):
-    """Save a training session (all races) for a runner"""
+    """Save a training session (all races) for a runner, detect new personal records"""
     first, last = input.first_name.strip(), input.last_name.strip()
     if not first or not last:
         raise HTTPException(status_code=400, detail="Prénom et nom requis")
+    if input.group_id and not await db.groups.find_one({"id": input.group_id}):
+        raise HTTPException(status_code=404, detail="Groupe non trouvé")
+
+    key = make_runner_key(first, last)
+    previous = await db.runner_sessions.find({"runner_key": key}, {"_id": 0}).to_list(1000)
+    previous_best = best_by_distance(previous)
+
     session = RunnerSession(
-        **{**input.model_dump(), "first_name": first, "last_name": last},
-        runner_key=make_runner_key(first, last),
+        **{**input.model_dump(exclude={"group_id"}), "first_name": first, "last_name": last},
+        runner_key=key,
     )
     await db.runner_sessions.insert_one(session.model_dump())
-    return session
+    await db.runner_profiles.update_one(
+        {"runner_key": key},
+        {"$set": {"runner_key": key, "first_name": first, "last_name": last, "group_id": input.group_id}},
+        upsert=True,
+    )
+
+    new_records = []
+    for d, (p, _) in best_by_distance([session.model_dump()]).items():
+        prev = previous_best.get(d)
+        prev_secs = prev[0]["time_seconds"] if prev else None
+        if prev_secs is None or p["time_seconds"] < prev_secs:
+            new_records.append(NewRecord(
+                distance=d,
+                time=p["time"],
+                time_seconds=p["time_seconds"],
+                previous_time_seconds=prev_secs,
+                improvement_seconds=(prev_secs - p["time_seconds"]) if prev_secs is not None else None,
+            ))
+    new_records.sort(key=lambda r: r.distance)
+    return RunnerSessionSaved(**session.model_dump(), new_records=new_records)
 
 
 @api_router.get("/sessions", response_model=List[RunnerSession])
@@ -199,8 +292,8 @@ async def get_sessions(first_name: str, last_name: str):
 
 
 @api_router.get("/runners", response_model=List[Runner])
-async def get_runners():
-    """List every runner having at least one saved session"""
+async def get_runners(group_id: Optional[str] = None):
+    """List every runner having at least one saved session (optionally filtered by group)"""
     pipeline = [
         {"$sort": {"created_at": -1}},
         {"$group": {
@@ -212,8 +305,98 @@ async def get_runners():
         }},
     ]
     runners = await db.runner_sessions.aggregate(pipeline).to_list(1000)
-    runners.sort(key=lambda r: (r["last_name"].casefold(), r["first_name"].casefold()))
-    return [Runner(**{k: v for k, v in r.items() if k != "_id"}) for r in runners]
+    profiles = {p["runner_key"]: p for p in await db.runner_profiles.find({}, {"_id": 0}).to_list(5000)}
+    group_names = {g["id"]: g["name"] for g in await db.groups.find({}, {"_id": 0}).to_list(1000)}
+
+    result = []
+    for r in runners:
+        gid = profiles.get(r["_id"], {}).get("group_id")
+        gid = gid if gid in group_names else None
+        if group_id and gid != group_id:
+            continue
+        result.append(Runner(
+            **{k: v for k, v in r.items() if k != "_id"},
+            group_id=gid,
+            group_name=group_names.get(gid),
+        ))
+    result.sort(key=lambda r: (r.last_name.casefold(), r.first_name.casefold()))
+    return result
+
+
+@api_router.get("/runners/profile", response_model=RunnerProfile)
+async def get_runner_profile(first_name: str, last_name: str):
+    """Runner profile (current group) used to prefill the group picker"""
+    profile = await db.runner_profiles.find_one({"runner_key": make_runner_key(first_name, last_name)}, {"_id": 0})
+    gid = profile.get("group_id") if profile else None
+    group = await db.groups.find_one({"id": gid}, {"_id": 0}) if gid else None
+    return RunnerProfile(
+        first_name=first_name.strip(),
+        last_name=last_name.strip(),
+        group_id=group["id"] if group else None,
+        group_name=group["name"] if group else None,
+    )
+
+
+# ---- Training groups ----
+async def group_member_counts() -> dict:
+    rows = await db.runner_profiles.aggregate([
+        {"$match": {"group_id": {"$ne": None}}},
+        {"$group": {"_id": "$group_id", "n": {"$sum": 1}}},
+    ]).to_list(1000)
+    return {r["_id"]: r["n"] for r in rows}
+
+
+@api_router.get("/groups", response_model=List[GroupWithCount])
+async def list_groups():
+    groups = await db.groups.find({}, {"_id": 0}).to_list(1000)
+    counts = await group_member_counts()
+    result = [GroupWithCount(id=g["id"], name=g["name"], member_count=counts.get(g["id"], 0)) for g in groups]
+    result.sort(key=lambda g: g.name.casefold())
+    return result
+
+
+@api_router.post("/groups", response_model=GroupWithCount)
+async def create_group(input: GroupCreate):
+    """Create a group (returns the existing one if the name is already used)"""
+    name = input.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Nom de groupe requis")
+    existing = await db.groups.find_one({"name_key": name.casefold()}, {"_id": 0})
+    if existing:
+        count = await db.runner_profiles.count_documents({"group_id": existing["id"]})
+        return GroupWithCount(id=existing["id"], name=existing["name"], member_count=count)
+    group = Group(name=name, name_key=name.casefold())
+    await db.groups.insert_one(group.model_dump())
+    return GroupWithCount(id=group.id, name=group.name, member_count=0)
+
+
+@api_router.get("/groups/{group_id}/leaderboard", response_model=List[DistanceLeaderboard])
+async def group_leaderboard(group_id: str):
+    """Best time of each group member for every distance, fastest first"""
+    if not await db.groups.find_one({"id": group_id}):
+        raise HTTPException(status_code=404, detail="Groupe non trouvé")
+    members = await db.runner_profiles.find({"group_id": group_id}, {"_id": 0, "runner_key": 1}).to_list(5000)
+    keys = [m["runner_key"] for m in members]
+    sessions = await db.runner_sessions.find({"runner_key": {"$in": keys}}, {"_id": 0}).to_list(10000)
+
+    by_runner = {}
+    for s in sessions:
+        by_runner.setdefault(s["runner_key"], []).append(s)
+
+    boards = {}
+    for runner_sessions in by_runner.values():
+        for d, (p, s) in best_by_distance(runner_sessions).items():
+            boards.setdefault(d, []).append(LeaderboardEntry(
+                first_name=s["first_name"],
+                last_name=s["last_name"],
+                time=p["time"],
+                time_seconds=p["time_seconds"],
+                speed=p["speed"],
+                date=s["created_at"],
+            ))
+    result = [DistanceLeaderboard(distance=d, entries=sorted(e, key=lambda x: x.time_seconds)) for d, e in boards.items()]
+    result.sort(key=lambda b: (-len(b.entries), b.distance))
+    return result
 
 
 @api_router.delete("/sessions/{session_id}")
