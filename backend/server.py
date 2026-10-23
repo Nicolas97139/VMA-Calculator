@@ -8,7 +8,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 ROOT_DIR = Path(__file__).parent
@@ -138,6 +138,65 @@ async def delete_calculation(calc_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Calcul non trouvé")
     return {"message": "Calcul supprimé"}
+
+
+# ---- Runner sessions (history per runner) ----
+class SessionPerformance(BaseModel):
+    distance: float = Field(gt=0)
+    time: str
+    time_seconds: int = Field(gt=0)
+    speed: float
+    pace: str
+    percentage: int
+    zone_name: Optional[str] = None
+    zone_index: int
+
+
+class RunnerSessionCreate(BaseModel):
+    first_name: str = Field(min_length=1)
+    last_name: str = Field(min_length=1)
+    vma_value: float = Field(gt=0, le=30)
+    performances: List[SessionPerformance] = Field(min_length=1)
+
+
+class RunnerSession(RunnerSessionCreate):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    runner_key: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+def make_runner_key(first_name: str, last_name: str) -> str:
+    return f"{first_name.strip().casefold()}|{last_name.strip().casefold()}"
+
+
+@api_router.post("/sessions", response_model=RunnerSession)
+async def create_session(input: RunnerSessionCreate):
+    """Save a training session (all races) for a runner"""
+    first, last = input.first_name.strip(), input.last_name.strip()
+    if not first or not last:
+        raise HTTPException(status_code=400, detail="Prénom et nom requis")
+    session = RunnerSession(
+        **{**input.model_dump(), "first_name": first, "last_name": last},
+        runner_key=make_runner_key(first, last),
+    )
+    await db.runner_sessions.insert_one(session.model_dump())
+    return session
+
+
+@api_router.get("/sessions", response_model=List[RunnerSession])
+async def get_sessions(first_name: str, last_name: str):
+    """Get all sessions of a runner, most recent first"""
+    key = make_runner_key(first_name, last_name)
+    sessions = await db.runner_sessions.find({"runner_key": key}, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return sessions
+
+
+@api_router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str):
+    result = await db.runner_sessions.delete_one({"id": session_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Séance non trouvée")
+    return {"message": "Séance supprimée"}
 
 
 # Include the router in the main app

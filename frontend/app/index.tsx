@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
   Text,
   View,
@@ -17,6 +17,8 @@ import { StatusBar } from 'expo-status-bar';
 import Ionicons from '@react-native-vector-icons/ionicons';
 import * as MediaLibrary from 'expo-media-library';
 import ViewShot from 'react-native-view-shot';
+import { useRouter } from 'expo-router';
+import { getZoneColor } from '../src/utils/vma';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_BACKEND_URL;
 
@@ -40,6 +42,7 @@ interface PerformanceAnalysis {
   id: string;
   distance: number;
   time: string;
+  timeSeconds: number;
   speed: number;
   pace: string;
   percentage: number;
@@ -47,21 +50,8 @@ interface PerformanceAnalysis {
   zoneIndex: number;
 }
 
-const getZoneColor = (index: number): string => {
-  const colors = [
-    '#4CAF50', // Récupération - Vert
-    '#8BC34A', // Endurance fondamentale - Vert clair
-    '#CDDC39', // Endurance active - Lime
-    '#FFEB3B', // Seuil anaérobie - Jaune
-    '#FFC107', // VMA longue - Ambre
-    '#FF9800', // VMA - Orange
-    '#FF5722', // VMA courte - Orange foncé
-    '#F44336', // Vitesse - Rouge
-  ];
-  return colors[index] || '#9E9E9E';
-};
-
 export default function Index() {
+  const router = useRouter();
   const [vmaInput, setVmaInput] = useState('');
   const [result, setResult] = useState<VMAResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -81,6 +71,60 @@ export default function Index() {
   // Export states
   const [exporting, setExporting] = useState(false);
   const viewShotRef = useRef<ViewShot>(null);
+
+  // Session saving states
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<{ ok: boolean; message: string } | null>(null);
+
+  // Any change in races invalidates the "saved" status
+  useEffect(() => {
+    setSaveStatus(null);
+  }, [performances]);
+
+  const openHistory = () => {
+    router.push({
+      pathname: '/history',
+      params: { firstName: runnerFirstName.trim(), lastName: runnerLastName.trim() },
+    });
+  };
+
+  const saveSession = async () => {
+    if (!result || performances.length === 0) return;
+    if (!runnerFirstName.trim() || !runnerLastName.trim()) {
+      setSaveStatus({ ok: false, message: 'Entrez le prénom et le nom du coureur pour enregistrer la séance' });
+      return;
+    }
+    setSaving(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          first_name: runnerFirstName.trim(),
+          last_name: runnerLastName.trim(),
+          vma_value: result.vma_value,
+          // Chronological order (list is displayed newest first)
+          performances: [...performances].reverse().map((p) => ({
+            distance: p.distance,
+            time: p.time,
+            time_seconds: p.timeSeconds,
+            speed: p.speed,
+            pace: p.pace,
+            percentage: p.percentage,
+            zone_name: p.zone?.name ?? null,
+            zone_index: p.zoneIndex,
+          })),
+        }),
+      });
+      if (!response.ok) throw new Error('save failed');
+      setSaveStatus({ ok: true, message: 'Séance enregistrée dans l\'historique' });
+    } catch (err) {
+      console.error('Save session error:', err);
+      setSaveStatus({ ok: false, message: 'Impossible d\'enregistrer la séance' });
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const calculateVMA = useCallback(async () => {
     const vmaValue = parseFloat(vmaInput.replace(',', '.'));
@@ -261,6 +305,7 @@ export default function Index() {
       id: Date.now().toString(),
       distance: distanceMeters,
       time: timeStr,
+      timeSeconds: minutes * 60 + seconds,
       speed: Math.round(speed * 10) / 10,
       pace: paceStr,
       percentage: Math.round(percentage),
@@ -302,6 +347,15 @@ export default function Index() {
             <Text style={styles.title}>Calculateur VMA</Text>
             <Text style={styles.subtitle}>Calcul des zones d&apos;entraînement</Text>
             <Text style={styles.authorText}>by M.DURAND</Text>
+            <TouchableOpacity
+              testID="open-history-button"
+              style={styles.historyButton}
+              onPress={openHistory}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="time-outline" size={18} color="#FF6B35" />
+              <Text style={styles.historyButtonText}>Historique</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Input Section */}
@@ -577,6 +631,41 @@ export default function Index() {
                         </>
                       )}
                     </TouchableOpacity>
+                  )}
+
+                  {/* Save Session Button */}
+                  <TouchableOpacity
+                    testID="save-session-button"
+                    style={[styles.saveSessionButton, (saving || saveStatus?.ok) && styles.buttonDisabled]}
+                    onPress={saveSession}
+                    disabled={saving || saveStatus?.ok}
+                    activeOpacity={0.8}
+                  >
+                    {saving ? (
+                      <ActivityIndicator color="#FFF" />
+                    ) : (
+                      <>
+                        <Ionicons name={saveStatus?.ok ? 'checkmark-circle' : 'save'} size={20} color="#FFF" />
+                        <Text style={styles.exportButtonText}>
+                          {saveStatus?.ok ? 'Séance enregistrée' : 'Enregistrer la séance'}
+                        </Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                  {saveStatus && (
+                    <View style={styles.saveStatusRow}>
+                      <Text
+                        testID="save-status-text"
+                        style={[styles.saveStatusText, { color: saveStatus.ok ? '#4CAF50' : '#FF5252' }]}
+                      >
+                        {saveStatus.message}
+                      </Text>
+                      {saveStatus.ok && (
+                        <TouchableOpacity testID="save-status-history-link" onPress={openHistory} activeOpacity={0.7}>
+                          <Text style={styles.saveStatusLink}>Voir l&apos;historique</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   )}
                 </View>
               )}
@@ -1276,6 +1365,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  saveSessionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF6B35',
+    borderRadius: 10,
+    paddingVertical: 14,
+    gap: 8,
+    marginTop: 12,
+  },
+  saveStatusRow: {
+    alignItems: 'center',
+    marginTop: 10,
+    gap: 6,
+  },
+  saveStatusText: {
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  saveStatusLink: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#FF6B35',
+    textDecorationLine: 'underline',
+    paddingVertical: 6,
+  },
+  historyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingHorizontal: 16,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#FF6B35',
+  },
+  historyButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FF6B35',
   },
   // Export View Styles (for screenshot)
   exportContainer: {
