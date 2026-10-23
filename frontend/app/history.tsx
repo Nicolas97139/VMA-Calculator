@@ -188,24 +188,11 @@ export default function HistoryScreen() {
     <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
       <View style={styles.topBar}>
-        <View style={styles.topBarSide}>
-          <TouchableOpacity testID="history-back-button" onPress={goBack} style={styles.backButton} activeOpacity={0.7}>
-            <Ionicons name="chevron-back" size={26} color="#FFF" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity testID="history-back-button" onPress={goBack} style={styles.backButton} activeOpacity={0.7}>
+          <Ionicons name="chevron-back" size={26} color="#FFF" />
+        </TouchableOpacity>
         <Text style={styles.topBarTitle}>Historique</Text>
-        <View style={[styles.topBarSide, styles.topBarSideRight]}>
-          <TouchableOpacity
-            testID="manage-groups-button"
-            style={styles.manageButton}
-            onPress={() => router.push('/groups')}
-            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="people" size={16} color="#FF6B35" />
-            <Text style={styles.manageButtonText}>Groupes</Text>
-          </TouchableOpacity>
-        </View>
+        <View style={styles.backButton} />
       </View>
 
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
@@ -366,6 +353,17 @@ export default function HistoryScreen() {
               )}
             </TouchableOpacity>
           </View>
+
+          <TouchableOpacity
+            testID="manage-groups-button"
+            style={styles.manageButton}
+            onPress={() => router.push('/groups')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="people" size={22} color="#FF6B35" />
+            <Text style={styles.manageButtonText}>Gérer les groupes</Text>
+            <Ionicons name="chevron-forward" size={20} color="#FF6B35" />
+          </TouchableOpacity>
 
           {selectedGroup && (
             <GroupLeaderboard
@@ -547,20 +545,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  topBarTitle: { flex: 1, fontSize: 18, fontWeight: 'bold', color: '#FFF', textAlign: 'center' },
-  topBarSide: { width: 110 },
-  topBarSideRight: { alignItems: 'flex-end', paddingRight: 8 },
+  topBarTitle: { fontSize: 18, fontWeight: 'bold', color: '#FFF' },
   manageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    height: 36,
-    paddingHorizontal: 12,
-    borderRadius: 18,
+    gap: 10,
+    height: 56,
+    paddingHorizontal: 16,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: '#FF6B35',
+    backgroundColor: '#1E1E1E',
+    marginBottom: 16,
   },
-  manageButtonText: { color: '#FF6B35', fontSize: 13, fontWeight: '600' },
+  manageButtonText: { flex: 1, color: '#FF6B35', fontSize: 16, fontWeight: 'bold' },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
   card: { backgroundColor: '#1E1E1E', borderRadius: 16, padding: 16, marginBottom: 16 },
   cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
