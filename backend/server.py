@@ -425,6 +425,17 @@ async def set_runner_group(input: RunnerGroupUpdate):
     )
 
 
+@api_router.delete("/runners")
+async def delete_runner(first_name: str, last_name: str):
+    """Delete a runner: all their sessions and their profile (group membership)"""
+    key = make_runner_key(first_name, last_name)
+    sessions = await db.runner_sessions.delete_many({"runner_key": key})
+    profile = await db.runner_profiles.delete_one({"runner_key": key})
+    if sessions.deleted_count == 0 and profile.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Coureur non trouvé")
+    return {"message": "Coureur supprimé", "deleted_sessions": sessions.deleted_count}
+
+
 @api_router.get("/groups/{group_id}/leaderboard", response_model=List[DistanceLeaderboard])
 async def group_leaderboard(group_id: str):
     """Best time of each group member for every distance, fastest first"""

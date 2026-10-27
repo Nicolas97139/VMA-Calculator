@@ -127,6 +127,19 @@ export default function GroupsScreen() {
     }
   };
 
+  const deleteRunner = async (runner: Runner) => {
+    try {
+      const qs = `first_name=${encodeURIComponent(runner.first_name)}&last_name=${encodeURIComponent(runner.last_name)}`;
+      const res = await fetch(`${BACKEND_URL}/api/runners?${qs}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+      setExpandedRunner(null);
+      await load();
+    } catch (err) {
+      console.error(err);
+      setError('Impossible de supprimer le coureur');
+    }
+  };
+
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/history'));
 
   return (
@@ -200,7 +213,7 @@ export default function GroupsScreen() {
                 </Text>
               ) : (
                 <>
-                  <Text style={styles.hint}>Touchez un coureur pour changer son groupe.</Text>
+                  <Text style={styles.hint}>Touchez un coureur pour changer son groupe, ou la corbeille pour le supprimer.</Text>
                   {runners.map((r) => {
                     const key = `${r.first_name}|${r.last_name}`.toLowerCase();
                     return (
@@ -211,6 +224,7 @@ export default function GroupsScreen() {
                         expanded={expandedRunner === key}
                         onToggle={() => setExpandedRunner((cur) => (cur === key ? null : key))}
                         onMove={(groupId) => moveRunner(r, groupId)}
+                        onDelete={() => deleteRunner(r)}
                       />
                     );
                   })}
